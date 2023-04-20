@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Manager</title>
+  <link rel="stylesheet" href="../css/fileman.css">
+</head>
+<body>
+<div class="file-loading">
+  <input type="file" id="file-input" />
+  <button id="upload-button">Загрузить</button>
+</div>
+  <div>
+    <div class="UIBox">
+      <h1 class="header">Images</h1>
+      <button class="menu-button" id="back-button" style="display: none;"></button>
+    </div>
+    <div class="UIBoxBackground"></div>
+  </div>
+  <div id="file-list" class="tile-container"></div>
+  <div id="modal" class="modal">
+    <span class="close"></span>
+    <img class="modal-content" id="modal-image">
+    <div id="caption"></div>
+    <a class="prev">&#10094;</a>
+    <a class="next">&#10095;</a>
+  </div>
+  <script src="filemanbundle.js"></script>
+</body>
+</html>

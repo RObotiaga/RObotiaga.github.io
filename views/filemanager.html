@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Manager</title>
+  <link rel="stylesheet" href="css/filemanager.css">
+</head>
+<body>
+
+  <div>
+    <div class="UIBox">
+      <h1 class="header">Images</h1>
+      <button class="menu-button" onclick="document.location='fileman/filemanager.html'"></button>
+    </div>
+    <div class="UIBoxBackground"></div>
+  </div>
+  <div id="file-list" class="tile-container"></div>
+  <div id="modal" class="modal">
+    <span class="close"></span>
+    <img class="modal-content" id="modal-image">
+    <div id="caption"></div>
+    <a class="prev">&#10094;</a>
+    <a class="next">&#10095;</a>
+  </div>
+  <script src="filebundle.js"></script>
+</body>
+</html>
