@@ -35319,14 +35319,18 @@ function buildFileStructure(files) {
       currentFolder = currentFolder.content[folderName];
     }
     const fileName = path[path.length - 1];
-    currentFolder.content[fileName] = {
+    if (!currentFolder.content[fileName]) {
+      currentFolder.content[fileName] = [];
+    }
+    currentFolder.content[fileName].push({
       name: fileName,
       type: "file",
       file: file.photo,
-    };
+    });
   }
   return root;
 }
+
 
 
 const modal = document.getElementById("modal");
@@ -35397,31 +35401,34 @@ async function displayFiles(folder) {
   }
 
   for (const itemName in folder.content) {
-    const item = folder.content[itemName];
-    const listItem = document.createElement("li");
+    const items = folder.content[itemName];
 
-    if (item.type === "file") {
-      listItem.className = "li-tile";
-      const file = item.file;
-      const thumbnailUrl = await getThumbnailUrl(file);
-      const divElement = document.createElement("div");
-      divElement.style.backgroundImage = `url(${thumbnailUrl})`;
-      divElement.className = "image-tile";
-      lazyLoadImage(divElement, file);
-      listItem.appendChild(divElement);
-    } else if (item.type === "folder") {
+    if (Array.isArray(items) && items[0].type === "file") {
+      for (const item of items) {
+        const listItem = document.createElement("li");
+        listItem.className = "li-tile";
+        const file = item.file;
+        const thumbnailUrl = await getThumbnailUrl(file);
+        const divElement = document.createElement("div");
+        divElement.style.backgroundImage = `url(${thumbnailUrl})`;
+        divElement.className = "image-tile";
+        lazyLoadImage(divElement, file);
+        listItem.appendChild(divElement);
+        fileList.appendChild(listItem);
+      }
+    } else if (items.type === "folder") {
+      const listItem = document.createElement("li");
       listItem.className = "folder";
       const divElement = document.createElement("div");
-      divElement.textContent = item.name;
+      divElement.textContent = items.name;
       divElement.className = "folder-tile";
       listItem.appendChild(divElement);
       listItem.onclick = () => {
-        navigationStack.push(item); // Добавляем открытую папку в стек
-        displayFiles(item);
+        navigationStack.push(items); // Добавляем открытую папку в стек
+        displayFiles(items);
       };
+      fileList.appendChild(listItem);
     }
-
-    fileList.appendChild(listItem);
   }
 }
 async function init() {
