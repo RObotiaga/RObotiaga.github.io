@@ -35284,6 +35284,21 @@ const client = new TelegramClient(stringSession, apiId, apiHash, {
   connectionRetries: 5,
 });
 
+// Функция для сохранения изображения в кэше
+function cacheImage(fileId, imageUrl) {
+  imageCache.set(fileId, imageUrl);
+}
+
+// Функция для получения изображения из кэша
+function getCachedImage(fileId) {
+  return imageCache.get(fileId);
+}
+
+// Функция для проверки наличия изображения в кэше
+function isImageCached(fileId) {
+  return imageCache.has(fileId);
+}
+
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
   const messages = await client.getMessages(mePeerId, { limit: 100 });
@@ -35377,14 +35392,14 @@ async function lazyLoadImage(imageDivElement, file) {
     if (entries[0].isIntersecting) {
       const fileId = file.id.toString();
 
-      if (imageCache.has(fileId)) {
-        imageDivElement.style.backgroundImage = `url(${imageCache.get(fileId)})`;
-        file.src = imageCache.get(fileId);
+      if (isImageCached(fileId)) {
+        imageDivElement.style.backgroundImage = `url(${getCachedImage(fileId)})`;
+        file.src = getCachedImage(fileId);
       } else {
         const buffer = await client.downloadMedia(file, {});
         const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
         const fullImageUrl = "data:image/jpeg;base64," + base64;
-        imageCache.set(fileId, fullImageUrl);
+        cacheImage(fileId, fullImageUrl);
         imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
         file.src = fullImageUrl;
       }
