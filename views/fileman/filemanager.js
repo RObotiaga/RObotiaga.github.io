@@ -1,27 +1,42 @@
 const { Api, TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
-
+const { CustomFile } = require("telegram/client/uploads");
 const apiId = 26855747;
 const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff";
 const savedSession = localStorage.getItem("savedSession");
 const stringSession = new StringSession(savedSession || "");
 let files = [];
 let navigationStack = [];
-
+const imageCache = new Map();
 const client = new TelegramClient(stringSession, apiId, apiHash, {
   connectionRetries: 5,
 });
 
+// Функция для сохранения изображения в кэше
+function cacheImage(fileId, imageUrl) {
+  imageCache.set(fileId, imageUrl);
+}
+
+// Функция для получения изображения из кэша
+function getCachedImage(fileId) {
+  return imageCache.get(fileId);
+}
+
+// Функция для проверки наличия изображения в кэше
+function isImageCached(fileId) {
+  return imageCache.has(fileId);
+}
+
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
   const messages = await client.getMessages(mePeerId, { limit: 100 });
-
   files = messages
     .filter((message) => message.media && message.media instanceof Api.MessageMediaPhoto)
     .map((message) => ({
       photo: message.media.photo,
       caption: message.message,
       date: message.date,
+      messageId: message.id,
     }));
   files.sort((a, b) => b.date - a.date);
   return files;
@@ -54,13 +69,15 @@ function buildFileStructure(files) {
       name: fileName,
       type: "file",
       file: file.photo,
+      messageId: file.messageId
     });
   }
   return root;
 }
 
 
-
+const fileInput = document.getElementById("file-input");
+const uploadButton = document.getElementById("upload-button");
 const modal = document.getElementById("modal");
 const modalImage = document.getElementById("modal-image");
 const closeBtn = document.querySelector(".close");
@@ -98,19 +115,60 @@ async function getThumbnailUrl(file) {
   return "data:image/jpeg;base64," + base64;
 }
 
-function lazyLoadImage(imageDivElement, file) {
+async function lazyLoadImage(imageDivElement, file) {
   const observer = new IntersectionObserver(async (entries) => {
     if (entries[0].isIntersecting) {
-      const buffer = await client.downloadMedia(file, {});
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-      const fullImageUrl = "data:image/jpeg;base64," + base64;
-      imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
-      file.src = fullImageUrl;
+      const fileId = file.id.toString();
+
+      if (isImageCached(fileId)) {
+        imageDivElement.style.backgroundImage = `url(${getCachedImage(fileId)})`;
+        file.src = getCachedImage(fileId);
+      } else {
+        const buffer = await client.downloadMedia(file, {});
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        const fullImageUrl = "data:image/jpeg;base64," + base64;
+        cacheImage(fileId, fullImageUrl);
+        imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
+        file.src = fullImageUrl;
+      }
+
       observer.disconnect();
     }
   }, {});
   observer.observe(imageDivElement);
 }
+const deleteButton = document.getElementById("delete-button");
+deleteButton.addEventListener("click", async () => {
+  const checkboxes = document.querySelectorAll(".file-checkbox:checked");
+  const selectedFiles = [];
+  const currentFolder = navigationStack[navigationStack.length - 1];
+  for (const checkbox of checkboxes) {
+    const listItem = checkbox.closest(".li-tile");
+    
+    
+    const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
+    selectedFiles.push(Object.values(currentFolder.content).flat()[fileIndex]);
+  }
+  for (const file of selectedFiles) {
+    try {
+      const fileId = file.messageId;
+      console.log(fileId);
+      await client.deleteMessages("me", [fileId], {
+        revoke: true,
+      });
+      console.log("Файл успешно удален:");  
+    } catch (error) {
+      console.error("Ошибка при удалении файла:", error);
+    }
+  }
+
+  // Обновите список файлов после удаления
+  const files = await getFilesFromMeDialog();
+  const fileStructure = buildFileStructure(files);
+  navigationStack = [fileStructure, ...navigationStack.slice(1)];
+  displayFiles(navigationStack[navigationStack.length - 1]);
+});
+
 
 async function displayFiles(folder) {
   const fileList = document.getElementById("file-list");
@@ -138,10 +196,14 @@ async function displayFiles(folder) {
         const file = item.file;
         const thumbnailUrl = await getThumbnailUrl(file);
         const divElement = document.createElement("div");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "file-checkbox";
         divElement.style.backgroundImage = `url(${thumbnailUrl})`;
         divElement.className = "image-tile";
         lazyLoadImage(divElement, file);
         listItem.appendChild(divElement);
+        listItem.appendChild(checkbox);
         fileList.appendChild(listItem);
       }
     } else if (items.type === "folder") {
@@ -159,12 +221,107 @@ async function displayFiles(folder) {
     }
   }
 }
+function arrayBufferFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+async function refreshFilesAndFolders() {
+  const files = await getFilesFromMeDialog();
+  const fileStructure = buildFileStructure(files);
+
+  const currentFolderPath = navigationStack
+    .slice(1)
+    .map((folder) => folder.name)
+    .join("/");
+
+  let currentFolder = fileStructure;
+  for (const folderName of currentFolderPath.split("/")) {
+    if (folderName && currentFolder.content[folderName]) {
+      currentFolder = currentFolder.content[folderName];
+    }
+  }
+
+  navigationStack = [fileStructure, ...navigationStack.slice(1, -1), currentFolder];
+  displayFiles(currentFolder);
+}
+async function uploadFile() {
+  const currentFolder = navigationStack[navigationStack.length - 1];
+  const currentFolderPath = navigationStack
+    .slice(1)
+    .map((folder) => folder.name)
+    .join("/");
+  const caption = currentFolderPath + "/" + fileInput.files[0].name;
+
+  try {
+    const file = fileInput.files[0];
+    const arrayBuffer = await file.arrayBuffer();
+    const toUpload = new CustomFile(file.name, file.size, "", arrayBuffer);
+
+    const result = await client.sendFile("me", {
+      file: toUpload,
+      caption: caption,
+      workers: 1,
+    });
+
+    console.log("Файл успешно загружен:", result);
+    refreshFilesAndFolders(); // Обновляем список файлов и папок
+  } catch (error) {
+    console.error("Ошибка при загрузке файла:", error);
+  }
+}
+document.querySelector('input[type=file]').addEventListener('change', async function() {
+  var file = this.files[0];
+
+  const toUpload = new telegram.client.uploads.CustomFile(file.name, file.size, '', await file.arrayBuffer());
+
+  const caption = navigationStack.length === 1
+    ? file.name
+    : navigationStack.slice(1).map(folder => folder.name).join("/") + "/" + file.name;
+
+  await client.sendFile(-1001681244853, {
+    file: toUpload,
+    caption: caption,
+    workers: 1,
+  });
+
+  // Обновляем структуру файлов и папок
+  const files = await getFilesFromMeDialog();
+  const fileStructure = buildFileStructure(files);
+  navigationStack[0] = fileStructure;
+
+  // Обновляем отображение текущей папки
+  displayFiles(navigationStack[navigationStack.length - 1]);
+});
+
 async function init() {
   await client.connect();
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
   navigationStack.push(fileStructure); // Добавляем корневую папку в историю навигации
   displayFiles(fileStructure);
+  const fileInput = document.getElementById("file-input");
+  const uploadButton = document.getElementById("upload-button");
+
+  uploadButton.addEventListener("click", () => {
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", async (event) => {
+    if (event.target.files.length > 0) {
+      const file = event.target.files[0];
+      await uploadFile(file);
+      // Обновите список файлов после загрузки
+      const files = await getFilesFromMeDialog();
+      const fileStructure = buildFileStructure(files);
+      navigationStack = [fileStructure, ...navigationStack.slice(1)];
+      displayFiles(navigationStack[navigationStack.length - 1]);
+    }
+  });
 }
+
 
 init(); 
