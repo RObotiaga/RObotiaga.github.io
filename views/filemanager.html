@@ -1,19 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>File Manager</title>
   <link rel="stylesheet" href="css/filemanager.css">
 </head>
+
 <body>
 
-  <div>
+  <!-- <div>
     <div class="UIBox">
       <h1 class="header">Images</h1>
       <button class="menu-button" onclick="document.location='fileman/filemanager.html'"></button>
     </div>
     <div class="UIBoxBackground"></div>
+  </div> -->
+  <div id="header">
+    <button class="exit-button" onclick="localStorage.removeItem('savedSession');">Выйти</button>
+    <button class="menu-button" onclick="document.location='fileman/filemanager.html'">Файлы</button>
+    <div id="user-photo"></div>
   </div>
   <div id="file-list" class="tile-container"></div>
   <div id="modal" class="modal">
@@ -23,6 +30,9 @@
     <a class="prev">&#10094;</a>
     <a class="next">&#10095;</a>
   </div>
+  <div id="footer"></div>
+  <!-- filemanager.js -->
   <script src="filebundle.js"></script>
 </body>
+
 </html>

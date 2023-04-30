@@ -61,9 +61,12 @@ async function getThumbnailUrl(file) {
 function lazyLoadImage(imageDivElement, file) {
   const observer = new IntersectionObserver(async (entries) => {
     if (entries[0].isIntersecting) {
+
       const buffer = await client.downloadMedia(file, {});
+
       const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
       const fullImageUrl = "data:image/jpeg;base64," + base64;
+
       imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
       file.src = fullImageUrl;
       observer.disconnect();
@@ -125,11 +128,20 @@ async function displayFiles(files) {
     fileList.appendChild(listItem);
   }
 }
-
-async function init() {
-await client.connect();
-const files = await getFilesFromMeDialog();
-displayFiles(files);
+async function setUserProfilePhotoAsBackground() {
+  const buffer = await client.downloadProfilePhoto('me')
+  console.log(buffer);
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const fullImageUrl = "data:image/jpeg;base64," + base64;
+  const userPhotoElement = document.getElementById("user-photo");
+  userPhotoElement.style.backgroundImage = `url(${fullImageUrl})`;
 }
 
-init();    
+async function init() {
+  await client.connect();
+  setUserProfilePhotoAsBackground();
+  const files = await getFilesFromMeDialog();
+  displayFiles(files);
+}
+
+init();   

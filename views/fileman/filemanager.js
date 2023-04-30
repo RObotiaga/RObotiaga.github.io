@@ -137,6 +137,15 @@ async function lazyLoadImage(imageDivElement, file) {
   }, {});
   observer.observe(imageDivElement);
 }
+function updateDeleteButtonVisibility() {
+  const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
+  if (selectedCheckboxesCount > 0) {
+    deleteButton.style.display = "block";
+  } else {
+    deleteButton.style.display = "none";
+  }
+}
+
 const deleteButton = document.getElementById("delete-button");
 deleteButton.addEventListener("click", async () => {
   const checkboxes = document.querySelectorAll(".file-checkbox:checked");
@@ -203,6 +212,10 @@ async function displayFiles(folder) {
         divElement.className = "image-tile";
         lazyLoadImage(divElement, file);
         listItem.appendChild(divElement);
+
+        // Добавляем обработчик событий для чекбоксов
+        checkbox.addEventListener("change", updateDeleteButtonVisibility);
+        checkbox.addEventListener("change", updateMoveButtonVisibility);
         listItem.appendChild(checkbox);
         fileList.appendChild(listItem);
       }
@@ -220,6 +233,9 @@ async function displayFiles(folder) {
       fileList.appendChild(listItem);
     }
   }
+
+  // Обновляем видимость кнопки удаления после изменения списка файлов
+  updateDeleteButtonVisibility();
 }
 function arrayBufferFromFile(file) {
   return new Promise((resolve, reject) => {
@@ -273,32 +289,76 @@ async function uploadFile() {
     console.error("Ошибка при загрузке файла:", error);
   }
 }
-document.querySelector('input[type=file]').addEventListener('change', async function() {
-  var file = this.files[0];
+async function setUserProfilePhotoAsBackground() {
+  const buffer = await client.downloadProfilePhoto('me')
+  console.log(buffer);
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const fullImageUrl = "data:image/jpeg;base64," + base64;
+  console.log(fullImageUrl);
+  const userPhotoElement = document.getElementById("user-photo");
+  userPhotoElement.style.backgroundImage = `url(${fullImageUrl})`;
+  if (fullImageUrl == 'data:image/jpeg;base64,') {
+    userPhotoElement.style.backgroundImage = `url(https://comhub.ru/wp-content/uploads/2018/09/dog1.png)`;
+  }
+}
+const moveButton = document.getElementById("move-button");
 
-  const toUpload = new telegram.client.uploads.CustomFile(file.name, file.size, '', await file.arrayBuffer());
+function updateMoveButtonVisibility() {
+  const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
+  if (selectedCheckboxesCount > 0) {
+    moveButton.style.display = "block";
+  } else {
+    moveButton.style.display = "none";
+  }
+}
+moveButton.addEventListener("click", async () => {
+  const folderList = document.getElementById("folder-list");
+  folderList.innerHTML = "";
 
-  const caption = navigationStack.length === 1
-    ? file.name
-    : navigationStack.slice(1).map(folder => folder.name).join("/") + "/" + file.name;
+  for (const folderName in fileStructure.content) {
+    const folder = fileStructure.content[folderName];
 
-  await client.sendFile(-1001681244853, {
-    file: toUpload,
-    caption: caption,
-    workers: 1,
-  });
+    if (folder.type === "folder") {
+      const listItem = document.createElement("li");
+      listItem.className = "folder";
+      const divElement = document.createElement("div");
+      divElement.textContent = folder.name;
+      divElement.className = "folder-tile";
+      listItem.appendChild(divElement);
 
-  // Обновляем структуру файлов и папок
-  const files = await getFilesFromMeDialog();
-  const fileStructure = buildFileStructure(files);
-  navigationStack[0] = fileStructure;
+      listItem.onclick = async () => {
+        const newFolderPath = folder.name;
 
-  // Обновляем отображение текущей папки
-  displayFiles(navigationStack[navigationStack.length - 1]);
+        // Перемещение выбранных файлов в новую папку
+        for (const file of filesToMove) {
+          try {
+            const messageId = file.messageId;
+            const newCaption = newFolderPath + "/" + file.name;
+            await client.editMessageCaption("me", messageId, newCaption);
+            console.log("Файл успешно перемещен:", file.name);
+          } catch (error) {
+            console.error("Ошибка при перемещении файла:", error);
+          }
+        }
+
+        // Обновление списка файлов после перемещения
+        const files = await getFilesFromMeDialog();
+        const fileStructure = buildFileStructure(files);
+        navigationStack = [fileStructure, ...navigationStack.slice(1)];
+        displayFiles(navigationStack[navigationStack.length - 1]);
+      };
+
+      folderList.appendChild(listItem);
+    }
+  }
+
+  // Показать список папок для выбора
+  document.getElementById("folder-selection-modal").style.display = "block";
 });
 
 async function init() {
   await client.connect();
+  setUserProfilePhotoAsBackground();
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
   navigationStack.push(fileStructure); // Добавляем корневую папку в историю навигации

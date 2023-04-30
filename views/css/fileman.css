@@ -2,6 +2,7 @@ body {
     font-family: sans-serif;
     margin: 0;
     padding: 0;
+    background-color: #000;
 }
 html {
     width: 100%;
@@ -13,6 +14,52 @@ html {
     list-style-type: none;
     margin-left: 3vw;
 }
+#header {
+    height: 17vw;
+}
+#move-button {
+    height: 15vw;
+    width: 15vw;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 50%;
+    border: 1vw solid #404040;
+    position: absolute;
+    background-color: #141414;
+    margin-left: 15vw;
+    color: white;
+  }
+#user-photo {
+    height: 14vw;
+    width: 14vw;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 50%;
+    border: 1vw solid black;
+}
+.exit-button {
+    height: 15vw;
+    width: 20vw;
+    float: right;
+    border: none;
+    outline: none;
+    display: block;
+
+    transition: 0.1s;
+}
+.menu-button {
+    height: 15vw;
+    width: 20vw;
+    float: right;
+    border: none;
+    outline: none;
+    display: block;
+
+    cursor: url('../img/Cast.png'), auto;
+    transition: 0.1s;
+}
 .file-checkbox {
     position: relative;
     float: right;
@@ -20,6 +67,17 @@ html {
     bottom: 20px;
     right: 10px;
 }
+#delete-button {
+    height: 15vw;
+    width: 15vw;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 50%;
+    border: 1vw solid #404040;
+    position: absolute;
+    background-color: #141414;
+  }
 .folder-tile {
     float: left;
     max-width: 160px;
@@ -28,6 +86,7 @@ html {
     left: 50%;
     position: relative;
     transform: translate(-50%, -50%);
+    color: whitesmoke;
   }
 .back-button {
     float: left;
@@ -181,31 +240,7 @@ html {
     -webkit-user-select: none;
     opacity: 0.7;
 }
-.menu-button {
-    z-index: 1;
-    position: absolute;
-    top: -7vw;
-    width: 30vw;
-    height: 30vw;
-    background: url('../img/button_idle_b_small.png') no-repeat top;
-      background-size: auto;
-    border: none;
-    outline: none;
-    transform: scale(0.8);
-    filter: drop-shadow(0px 0px 8px #000);
-    cursor: url('../img/Cast.png'), auto;
-    transition: 0.1s;
-    background-size: cover;
-    right: -6vw;
-  }
-.menu-button:hover {
-    background: url('../img/button_hover_b_small.png') no-repeat top;
-    background-size: cover;
-}
-.menu-button:active {
-    background: url('../img/button_pressed_b_small.png') no-repeat top;
-    background-size: cover;
-}
+
 .next {
     right: 0;
     border-radius: 3px 0 0 3px;

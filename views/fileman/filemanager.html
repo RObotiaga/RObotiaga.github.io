@@ -1,24 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>File Manager</title>
   <link rel="stylesheet" href="../css/fileman.css">
 </head>
+
 <body>
-<div class="file-loading">
-  <input type="file" id="file-input" >
-  <button id="upload-button">Загрузить файл</button>
-</div>
-  <div>
-    <div class="UIBox">
-      <h1 class="header">Images</h1>
-    </div>
-    <div class="UIBoxBackground"></div>
+  <div class="file-loading">
+    <input type="file" id="file-input" style="display: none;">
+    <button id="upload-button">Загрузить файл</button>
   </div>
-  <button class="menu-button" id="back-button" style="display: none;"></button>
-  <button id="delete-button">Удалить выбранные</button>
+  <div id="header">
+    <button class="exit-button" onclick="localStorage.removeItem('savedSession');">Выйти</button>
+    <button class="menu-button" onclick="document.location='../filemanager.html'">Фото</button>
+    <button class="menu-button" id="back-button" style="display: none;"></button>
+    <button id="delete-button" style="display: none;">
+      <svg width="24" height="24" viewBox="0 0 24 24">
+        <path fill="#fff" d="M7.5 22h9c0.828 0 1.5-0.672 1.5-1.5v-12c0-0.828-0.672-1.5-1.5-1.5h-9c-0.828 0-1.5 0.672-1.5 1.5v12c0 0.828 0.672 1.5 1.5 1.5zm-3-16.5c0-0.828 0.672-1.5 1.5-1.5h12c0.828 0 1.5 0.672 1.5 1.5v3h-15v-3zm12.5 5.5h-11c-0.276 0-0.5-0.224-0.5-0.5s0.224-0.5 0.5-0.5h11c0.276 0 0.5 0.224 0.5 0.5s-0.224 0.5-0.5 0.5zm-2.5 4c-0.276 0-0.5-0.224-0.5-0.5v-5c0-0.276 0.224-0.5 0.5-0.5s0.5 0.224 0.5 0.5v5c0 0.276-0.224 0.5-0.5 0.5z"/>
+      </svg>
+    </button>
+    <button id="move-button" class="action-button" style="display: none;">Move</button>
+    <div id="user-photo"></div>
+  </div>
+  <div id="folder-selection-modal" class="modal">
+    <div class="modal-content">
+      <span class="folder-selection-close">&times;</span>
+      <h2>Select a folder to move the files</h2>
+      <ul id="folder-list"></ul>
+    </div>
+  </div>
   <div id="file-list" class="tile-container"></div>
   <div id="modal" class="modal">
     <span class="close"></span>
@@ -29,4 +42,5 @@
   </div>
   <script src="filemanbundle.js"></script>
 </body>
+
 </html>

@@ -2,6 +2,7 @@ body {
     font-family: sans-serif;
     margin: 0;
     padding: 0;
+    background-color: black;
 }
 html {
     width: 100%;
@@ -141,27 +142,43 @@ html {
     -webkit-user-select: none;
     opacity: 0.7;
 }
-.menu-button {
-    z-index: 1;
-    position: absolute;
-    margin-left: 80vw;
-    top: 5vw;
-    width: 71px;
-    height: 71px;
-    background: url('../img/button_idle_b_small.png') no-repeat top;
+#header {
+}
+#user-photo {
+    height: 14vw;
+    width: 14vw;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 50%;
+    border: 1vw solid black;
+}
+.exit-button {
+    height: 15vw;
+    width: 20vw;
+    float: right;
     border: none;
     outline: none;
     display: block;
-    transform: scale(0.8);
-    filter: drop-shadow(0px 0px 8px #000);
+
+    transition: 0.1s;
+}
+.menu-button {
+    height: 15vw;
+    width: 20vw;
+    float: right;
+    border: none;
+    outline: none;
+    display: block;
+
     cursor: url('../img/Cast.png'), auto;
     transition: 0.1s;
 }
 .menu-button:hover {
-    background: url('../img/button_hover_b_small.png') no-repeat top;
+    
 }
 .menu-button:active {
-    background: url('../img/button_pressed_b_small.png') no-repeat top;
+
 }
 .next {
     right: 0;
