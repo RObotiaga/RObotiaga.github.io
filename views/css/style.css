@@ -242,8 +242,7 @@ html, body {
     margin-top: 230px;
 }
 
-.fullWidth
-{
+.fullWidth {
     display: flex;
     align-items:center;
     justify-content:center;
@@ -256,15 +255,11 @@ html, body {
     pointer-events: none;
 }
 
-.fullScreen
-{
+.fullScreen {
     position: absolute;
     top: 0px;
-    left: -190%;
-    width: 80%;
-    height: 80%;
+    left: -0%;
 }
-
 .foreground {
     z-index: 1;
 }
