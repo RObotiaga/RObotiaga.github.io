@@ -35268,8 +35268,8 @@ function writeFileSync (filename, data, options) {
   }
 }
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../../../usr/lib/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'),"/../node_modules/write-file-atomic/index.js")
-},{"../../../../../../usr/lib/node_modules/browserify/node_modules/is-buffer/index.js":332,"_process":355,"graceful-fs":32,"imurmurhash":39,"slide":66,"util":396}],180:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../../usr/local/lib/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'),"/../node_modules/write-file-atomic/index.js")
+},{"../../../../../../usr/local/lib/node_modules/browserify/node_modules/is-buffer/index.js":332,"_process":355,"graceful-fs":32,"imurmurhash":39,"slide":66,"util":396}],180:[function(require,module,exports){
 const { Api, TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 
@@ -35284,7 +35284,7 @@ const client = new TelegramClient(stringSession, apiId, apiHash, {
 
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
-  const messages = await client.getMessages(mePeerId, { limit: 100 });
+  const messages = await client.getMessages(mePeerId);
 
   files = messages
     .filter((message) => message.media && message.media instanceof Api.MessageMediaPhoto)
@@ -35299,8 +35299,21 @@ const closeBtn = document.querySelector(".close");
 const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
 
+async function loadImage(file) {
+  const buffer = await client.downloadMedia(file, {});
+
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const fullImageUrl = "data:image/jpeg;base64," + base64;
+
+  file.src = fullImageUrl;
+}
 function openModal(index) {
   currentImageIndex = index;
+  
+  if (!files[currentImageIndex].src) {
+    loadImage(files[currentImageIndex]);
+  }
+  
   modalImage.src = files[currentImageIndex].src;
   modal.style.display = "block";
 }
@@ -35343,7 +35356,8 @@ function lazyLoadImage(imageDivElement, file) {
       file.src = fullImageUrl;
       observer.disconnect();
     }
-  }, {});
+  });
+
   observer.observe(imageDivElement);
 }
 

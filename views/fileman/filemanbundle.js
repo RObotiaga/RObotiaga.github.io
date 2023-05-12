@@ -35268,11 +35268,12 @@ function writeFileSync (filename, data, options) {
   }
 }
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../../../usr/lib/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'),"/../../node_modules/write-file-atomic/index.js")
-},{"../../../../../../usr/lib/node_modules/browserify/node_modules/is-buffer/index.js":332,"_process":355,"graceful-fs":32,"imurmurhash":39,"slide":66,"util":396}],180:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../../usr/local/lib/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'),"/../../node_modules/write-file-atomic/index.js")
+},{"../../../../../../usr/local/lib/node_modules/browserify/node_modules/is-buffer/index.js":332,"_process":355,"graceful-fs":32,"imurmurhash":39,"slide":66,"util":396}],180:[function(require,module,exports){
 const { Api, TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { CustomFile } = require("telegram/client/uploads");
+const { message } = require("telegram/client");
 const apiId = 26855747;
 const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff";
 const savedSession = localStorage.getItem("savedSession");
@@ -35315,7 +35316,7 @@ async function getFilesFromMeDialog() {
 }
 function buildFileStructure(files) {
   const root = {
-    name: "Main",
+    name: "root",
     type: "folder",
     content: {},
   };
@@ -35356,9 +35357,8 @@ const closeBtn = document.querySelector(".close");
 const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
 
-function openModal(index) {
-  currentImageIndex = index;
-  modalImage.src = files[currentImageIndex].src;
+function openModal(item) {
+  modalImage.src = item.file.src; // используем свойство 'src' из файла в объекте 'item'
   modal.style.display = "block";
 }
 
@@ -35409,6 +35409,42 @@ async function lazyLoadImage(imageDivElement, file) {
   }, {});
   observer.observe(imageDivElement);
 }
+const renameButton = document.getElementById("rename-button");
+
+function updateRenameButtonVisibility() {
+  const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
+  if (selectedCheckboxesCount === 1) {
+    renameButton.style.display = "block";
+  } else {
+    renameButton.style.display = "none";
+  }
+}
+
+renameButton.addEventListener("click", async () => {
+  const selectedCheckbox = document.querySelector(".file-checkbox:checked");
+  const fileIndex = Array.from(document.querySelectorAll(".file-checkbox")).indexOf(selectedCheckbox);
+  const file = files[fileIndex];
+  const oldCaption = file.caption;
+  const newCaption = prompt("Enter a new caption for the image:", oldCaption);
+
+  if (newCaption !== null && newCaption !== oldCaption) {
+    try {
+      await client.editMessageCaption("me", file.messageId, newCaption);
+      console.log("Caption successfully renamed:", newCaption);
+      refreshFilesAndFolders(); // Refresh the files and folders list
+    } catch (error) {
+      console.error("Error renaming caption:", error);
+    }
+  }
+  const files = await getFilesFromMeDialog();
+  const fileStructure = buildFileStructure(files);
+  navigationStack = [fileStructure, ...navigationStack.slice(1)];
+  displayFiles(navigationStack[navigationStack.length - 1]);
+});
+
+// Add updateRenameButtonVisibility to the event listeners for the checkboxes
+
+
 function updateDeleteButtonVisibility() {
   const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
   if (selectedCheckboxesCount > 0) {
@@ -35433,7 +35469,6 @@ deleteButton.addEventListener("click", async () => {
   for (const file of selectedFiles) {
     try {
       const fileId = file.messageId;
-      console.log(fileId);
       await client.deleteMessages("me", [fileId], {
         revoke: true,
       });
@@ -35450,17 +35485,22 @@ deleteButton.addEventListener("click", async () => {
   displayFiles(navigationStack[navigationStack.length - 1]);
 });
 
-
 async function displayFiles(folder) {
   const fileList = document.getElementById("file-list");
   fileList.innerHTML = "";
-
+  console.log(folder.name);
+  const currentFolderName = document.getElementById("currentfolder");
+  const userPhoto = document.getElementById("user-photo");
+  currentFolderName.textContent = folder.name;
   const backButton = document.getElementById("back-button");
+  currentFiles = files.map((file, index) => ({ file, index }));
 
   if (navigationStack.length <= 1) { // Если в стеке только корневая папка
     backButton.style.display = "none";
+    userPhoto.style.display = "block";
   } else {
     backButton.style.display = "block";
+    userPhoto.style.display = "none";
     backButton.onclick = () => {
       navigationStack.pop(); // Удаляем текущую папку из стека
       displayFiles(navigationStack[navigationStack.length - 1]); // Возвращаемся к предыдущей папке
@@ -35478,25 +35518,37 @@ async function displayFiles(folder) {
         const thumbnailUrl = await getThumbnailUrl(file);
         const divElement = document.createElement("div");
         const checkbox = document.createElement("input");
+        const filename = document.createElement("div"); // Создаем элемент <p> для имени файла
         checkbox.type = "checkbox";
         checkbox.className = "file-checkbox";
         divElement.style.backgroundImage = `url(${thumbnailUrl})`;
         divElement.className = "image-tile";
         lazyLoadImage(divElement, file);
         listItem.appendChild(divElement);
+        divElement.addEventListener("click", () => openModal(item));
 
+        // Устанавливаем имя файла и добавляем его к элементу списка
+        filename.textContent = item.name || "Noname"; // Используйте подпись сообщения для имени файла
+        filename.className = "file-name"; // Добавляем класс для стилизации имени файла
+        listItem.appendChild(filename);
+        
         // Добавляем обработчик событий для чекбоксов
         checkbox.addEventListener("change", updateDeleteButtonVisibility);
         checkbox.addEventListener("change", updateMoveButtonVisibility);
+        checkbox.addEventListener("change", updateRenameButtonVisibility);
         listItem.appendChild(checkbox);
+
         fileList.appendChild(listItem);
       }
     } else if (items.type === "folder") {
       const listItem = document.createElement("li");
-      listItem.className = "folder";
+      listItem.className = "li-tile";
       const divElement = document.createElement("div");
+      const folderTile = document.createElement("div");
+      folderTile.className = "folder";
       divElement.textContent = items.name;
-      divElement.className = "folder-tile";
+      divElement.className = "file-name";
+      listItem.appendChild(folderTile);
       listItem.appendChild(divElement);
       listItem.onclick = () => {
         navigationStack.push(items); // Добавляем открытую папку в стек
@@ -35563,10 +35615,10 @@ async function uploadFile() {
 }
 async function setUserProfilePhotoAsBackground() {
   const buffer = await client.downloadProfilePhoto('me')
-  console.log(buffer);
+
   const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
   const fullImageUrl = "data:image/jpeg;base64," + base64;
-  console.log(fullImageUrl);
+
   const userPhotoElement = document.getElementById("user-photo");
   userPhotoElement.style.backgroundImage = `url(${fullImageUrl})`;
   if (fullImageUrl == 'data:image/jpeg;base64,') {
@@ -35657,7 +35709,7 @@ async function init() {
 
 
 init(); 
-},{"telegram":128,"telegram/client/uploads":97,"telegram/sessions":148}],181:[function(require,module,exports){
+},{"telegram":128,"telegram/client":90,"telegram/client/uploads":97,"telegram/sessions":148}],181:[function(require,module,exports){
 
 },{}],182:[function(require,module,exports){
 'use strict';

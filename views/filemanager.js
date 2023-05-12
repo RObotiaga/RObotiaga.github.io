@@ -12,7 +12,7 @@ const client = new TelegramClient(stringSession, apiId, apiHash, {
 
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
-  const messages = await client.getMessages(mePeerId, { limit: 100 });
+  const messages = await client.getMessages(mePeerId);
 
   files = messages
     .filter((message) => message.media && message.media instanceof Api.MessageMediaPhoto)
@@ -27,8 +27,21 @@ const closeBtn = document.querySelector(".close");
 const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
 
+async function loadImage(file) {
+  const buffer = await client.downloadMedia(file, {});
+
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const fullImageUrl = "data:image/jpeg;base64," + base64;
+
+  file.src = fullImageUrl;
+}
 function openModal(index) {
   currentImageIndex = index;
+  
+  if (!files[currentImageIndex].src) {
+    loadImage(files[currentImageIndex]);
+  }
+  
   modalImage.src = files[currentImageIndex].src;
   modal.style.display = "block";
 }
@@ -71,7 +84,8 @@ function lazyLoadImage(imageDivElement, file) {
       file.src = fullImageUrl;
       observer.disconnect();
     }
-  }, {});
+  });
+
   observer.observe(imageDivElement);
 }
 
