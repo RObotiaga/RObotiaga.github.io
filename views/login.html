@@ -4,25 +4,18 @@
         <meta charset=utf-8 />
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>TeleDisk</title>
-        <link rel="stylesheet" href="css/style.css">
+        <link rel="stylesheet" href="css/login.css">
     </head>
     <body>
         <div class="noSelect">
-
-            <!-- LOGO -->
-            <button class="xPacButton" id="logo"></button>
-            
-            
-
-            <!--QUEUE BOX-->
             <div class="centered" id="queue">
-                <div class="UIBox" style="width: 250px; height: 200px;"></div>
-                <div class="UIBoxBackground" style="width: 300px; height: 250px;"></div>
+                <button class="xPacButton" id="logo"></button>
                 <form id="login-form">
                   <div id="queueTextContainer">
 
                     <span id="loginTextContainer">
-                      <p class="queueText">Account</p>
+                      <p class="queueText">TeleDisk</p>
+                      <p class="note">Please confirm your country code and enter your phone number.</p>
                       <input id="login_login" name="login" class="form__input" placeholder="Number" required>
                       <button id="login_button" class="button_b" type="button" >Accept</button>
                     </span>
@@ -38,20 +31,8 @@
                   </div>
                 </form>                
             </div>
-
-
-            <!--BUILD VER-->
-            <p id="buildVersion">Version 0.0.1 (Release ARM)</p>
-
-            <!--BUILD DATE-->
-            <p id="buildDate">Apr 14 2023</p>
-
-            <!-- BACKGROUND -->
-            <div class="fullScreen">
-              <video autoplay muted="true" loop id="background">
-                  <source src="./WrathOfTheLichKing.webm" type="video/webm">
-            </div>
-
+            <p id="buildVersion" class="note">Version 0.0.1 (Release ARM)</p>
+            <p id="buildDate" class="note">Apr 14 2023</p>
         </div>
         <!-- ./login.js -->
         <script src="./bundle.js"></script>
