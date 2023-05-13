@@ -116,9 +116,6 @@ html {
     z-index: 2;
 }
 
-#queueTextContainer {
-
-}
 
 #dcTextContainer {
     position: fixed;
@@ -176,7 +173,7 @@ html {
     margin-top: 0;
     margin-bottom: .5rem;
     font-weight: 500;
-    font-size: 6vw;
+    font-size: min(6vw,30px);
 }
 
 .text {
@@ -200,6 +197,7 @@ html {
     transition: border-color .15s ease;
     word-break: break-word;
     -webkit-appearance: none;
+    appearance: none;
     font-size: 1rem;
     line-height: 1.25rem;
 }
@@ -267,30 +265,9 @@ html {
 }
 
 .button_b {
-    --border-width: 1px;
-    display: block;
-    width: 100%;
-    height: 3.375rem;
-    padding: calc(.75rem - var(--border-width)) calc(.9rem - var(--border-width));
-    border: var(--border-width) solid var(--color-borders-input);
-    border-radius: var(--border-radius-default);
-    color: var(--color-text);
-    background-color: var(--color-background);
-    outline: none;
-    transition: border-color .15s ease;
-    word-break: break-word;
-    -webkit-appearance: none;
-    font-size: 1rem;
-    line-height: 1.25rem;
-}
-
-.buton_b:focus {
-    background-color: var(--color-primary-opacity);
-}
-.button_b {
     --border-width: 3px;
     display: block;
-    width: 60vw;
+    width: min(60vw,300px);
     height: 3.375rem;
     padding: calc(.75rem - var(--border-width)) calc(.9rem - var(--border-width));
     border: var(--border-width) solid var(--color-primary);
@@ -301,15 +278,23 @@ html {
     transition: border-color .15s ease;
     word-break: break-word;
     -webkit-appearance: none;
+    appearance: none;
     font-size: 1rem;
     line-height: 1.25rem;
-    margin-left: 14vw;
+    margin-left: min(14vw,50px);
+    margin-right: 100px;
 }
+
+.buton_b:focus {
+    background-color: var(--color-primary-opacity);
+}
+
+
 .button_b:active {
     background-color: var(--color-primary-opacity);
 }
 #login-form {
-    width: 90vw;
+    width: min(400px,90vw);
 }
 #login_button, #code_button {
     margin-top: 3vw;
@@ -351,7 +336,9 @@ html {
     margin-bottom: 4vw;
     border: none;
     background: url(https://web.telegram.org/a/telegram-logo.1b2bb5b107f046ea9325.svg);
-    margin-top: 30vw;
+    margin-top: min(30vw,100px);
+    max-width: 150px;
+    max-height: 150px;  
 }
 .note {
     font-size: 1rem;
