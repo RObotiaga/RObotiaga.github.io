@@ -116,25 +116,34 @@ async function getThumbnailUrl(file) {
 }
 
 async function lazyLoadImage(imageDivElement, file) {
+  const fileId = file.id.toString();
+
+  // Check if image is cached before creating observer
+  if (isImageCached(fileId)) {
+    imageDivElement.style.backgroundImage = `url(${getCachedImage(fileId)})`;
+    file.src = getCachedImage(fileId);
+    return;
+  }
+
   const observer = new IntersectionObserver(async (entries) => {
     if (entries[0].isIntersecting) {
-      const fileId = file.id.toString();
-
-      if (isImageCached(fileId)) {
-        imageDivElement.style.backgroundImage = `url(${getCachedImage(fileId)})`;
-        file.src = getCachedImage(fileId);
-      } else {
+      try {
         const buffer = await client.downloadMedia(file, {});
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-        const fullImageUrl = "data:image/jpeg;base64," + base64;
+        fullImageUrl=URL.createObjectURL(
+          new Blob([buffer], { type: 'image/png' } /* (1) */)
+        );
         cacheImage(fileId, fullImageUrl);
         imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
         file.src = fullImageUrl;
+      } catch (error) {
+        console.error(`Error loading image ${fileId}: ${error}`);
+        // Handle image loading error as needed, e.g. show a fallback image
       }
-
       observer.disconnect();
     }
   }, {});
+
+  // Start observing the imageDivElement
   observer.observe(imageDivElement);
 }
 const renameButton = document.getElementById("rename-button");
@@ -235,6 +244,9 @@ async function displayFiles(folder) {
     };
   }
 
+  // Create an array to store all the promises returned by lazyLoadImage
+  const lazyLoadPromises = [];
+
   for (const itemName in folder.content) {
     const items = folder.content[itemName];
 
@@ -251,7 +263,6 @@ async function displayFiles(folder) {
         checkbox.className = "file-checkbox";
         divElement.style.backgroundImage = `url(${thumbnailUrl})`;
         divElement.className = "image-tile";
-        lazyLoadImage(divElement, file);
         listItem.appendChild(divElement);
         divElement.addEventListener("click", () => openModal(item));
 
@@ -267,6 +278,9 @@ async function displayFiles(folder) {
         listItem.appendChild(checkbox);
 
         fileList.appendChild(listItem);
+
+        // Store the promise returned by lazyLoadImage
+        lazyLoadPromises.push(lazyLoadImage(divElement, file));
       }
     } else if (items.type === "folder") {
       const listItem = document.createElement("li");
@@ -286,9 +300,14 @@ async function displayFiles(folder) {
     }
   }
 
-  // Обновляем видимость кнопки удаления после изменения списка файлов
-  updateDeleteButtonVisibility();
+  // Wait for all the lazyLoadImage promises to resolve
+    // Wait for all the lazyLoadImage promises to resolve
+    await Promise.all(lazyLoadPromises);
+
+    // Обновляем видимость кнопки удаления после изменения списка файлов
+    updateDeleteButtonVisibility();
 }
+  
 function arrayBufferFromFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
