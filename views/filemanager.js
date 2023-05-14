@@ -71,21 +71,28 @@ async function getThumbnailUrl(file) {
   return "data:image/jpeg;base64," + base64;
 }
 
-function lazyLoadImage(imageDivElement, file) {
+async function lazyLoadImage(imageDivElement, file) {
+  const fileId = file.id.toString();
+
   const observer = new IntersectionObserver(async (entries) => {
     if (entries[0].isIntersecting) {
-
-      const buffer = await client.downloadMedia(file, {});
-
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-      const fullImageUrl = "data:image/jpeg;base64," + base64;
-
-      imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
-      file.src = fullImageUrl;
+      try {
+        //imageDivElement.style.backgroundColor = `rgb(135,116,225)`;
+        const buffer = await client.downloadMedia(file, {});
+        fullImageUrl=URL.createObjectURL(
+          new Blob([buffer], { type: 'image/png' } /* (1) */)
+        );
+        imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
+        file.src = fullImageUrl;
+      } catch (error) {
+        console.error(`Error loading image ${fileId}: ${error}`);
+        // Handle image loading error as needed, e.g. show a fallback image
+      }
       observer.disconnect();
     }
-  });
+  }, {});
 
+  // Start observing the imageDivElement
   observer.observe(imageDivElement);
 }
 
@@ -133,18 +140,17 @@ async function displayFiles(files) {
     divElement.className = "image-tile";
 
     // Lazy load the full-resolution image
-    lazyLoadImage(divElement, file);
 
     // Add event listener to open the modal
     divElement.addEventListener("click", () => openModal(index));
 
     listItem.appendChild(divElement);
     fileList.appendChild(listItem);
+    lazyLoadImage(divElement, file);
   }
 }
 async function setUserProfilePhotoAsBackground() {
   const buffer = await client.downloadProfilePhoto('me')
-  console.log(buffer);
   const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
   const fullImageUrl = "data:image/jpeg;base64," + base64;
   const userPhotoElement = document.getElementById("user-photo");

@@ -18,8 +18,6 @@
     <div class="UIBoxBackground"></div>
   </div> -->
   <div id="header">
-    <button class="exit-button" onclick="localStorage.removeItem('savedSession');document.location='./login.html'">Выйти</button>
-    <button class="menu-button" onclick="document.location='fileman/filemanager.html'">Файлы</button>
     <div id="user-photo"></div>
   </div>
   <div id="file-list" class="tile-container"></div>
@@ -30,7 +28,10 @@
     <a class="prev">&#10094;</a>
     <a class="next">&#10095;</a>
   </div>
-  <div id="footer"></div>
+  <div class="footer">
+    <button class="footer-button" id="exit-button" onclick="localStorage.removeItem('savedSession'); document.location='../login.html'"><img src="./img/exit.svg" class="footerbuttonsvg">Выйти</button>
+    <button class="footer-button" onclick="document.location='fileman/filemanager.html'"><img src="./img/folder.svg" class="footerbuttonsvg">Файлы</button>
+  </div>
   <!-- filemanager.js -->
   <script src="filebundle.js"></script>
 </body>
