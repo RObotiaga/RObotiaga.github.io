@@ -27,19 +27,7 @@ html {
     background-color: #303134;
     max-height: 60px;
 }
-#move-button {
-    height: 15vw;
-    width: 15vw;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    border-radius: 50%;
-    border: 1vw solid #404040;
-    position: absolute;
-    background-color: #141414;
-    margin-left: 15vw;
-    color: white;
-}
+
 #user-photo {
     height: 11vw;
     width: 11vw;
@@ -68,11 +56,10 @@ html {
     border: none;
     outline: none;
     display: block;
-    cursor: url('../img/Cast.png'), auto;
     transition: 0.1s;
     background-color: #303134;
     color: #999;
-    max-height: 70px;
+    max-height: 60px;
 }
 .footer-button:hover {
     background-color: #5e5e5e;
@@ -82,25 +69,15 @@ html {
     float: right;
     z-index: 10;
     bottom: 38px;
-    right: min(13px,2vw);
+    right: -3px;
 }
 img.footerbuttonsvg {
     width: 16vw;
     height: 8vw;
     margin: 0;
-    max-height: 50px;
+    max-height: 40px;
 }
-#delete-button {
-    height: 15vw;
-    width: 15vw;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    border-radius: 50%;
-    border: 1vw solid #404040;
-    position: absolute;
-    background-color: #141414;
-  }
+
 .folder-tile {
     float: left;
     max-width: 160px;
@@ -267,8 +244,12 @@ img.footerbuttonsvg {
     background-size: cover;
     z-index: 1;
     opacity: 0.7;
+    max-width: 100px;
+    max-height: 100px;
 }
-
+.footer-button-text {
+    width: 17vw;
+}
 .close:hover, .close:focus {
     color: #bbb;
     text-decoration: none;

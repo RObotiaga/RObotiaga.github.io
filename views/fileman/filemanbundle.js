@@ -65798,28 +65798,24 @@ const client = new TelegramClient(stringSession, apiId, apiHash, {
   connectionRetries: 5,
 });
 
-// Функция для сохранения изображения в кэше
 function cacheImage(fileId, imageUrl) {
   imageCache.set(fileId, imageUrl);
 }
 
-// Функция для получения изображения из кэша
 function getCachedImage(fileId) {
   return imageCache.get(fileId);
 }
 
-// Функция для проверки наличия изображения в кэше
 function isImageCached(fileId) {
   return imageCache.has(fileId);
 }
-
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
   const messages = await client.getMessages(mePeerId, { limit: 100 });
   files = messages
-    .filter((message) => message.media && message.media instanceof Api.MessageMediaPhoto)
+    .filter((message) => message.media instanceof Api.MessageMediaPhoto || message.message.startsWith("#EmptyFolder " ))
     .map((message) => ({
-      photo: message.media.photo,
+      photo: message.media && message.media.photo,
       caption: message.message,
       date: message.date,
       messageId: message.id,
@@ -65827,6 +65823,7 @@ async function getFilesFromMeDialog() {
   files.sort((a, b) => b.date - a.date);
   return files;
 }
+
 function buildFileStructure(files) {
   const root = {
     name: "root",
@@ -65836,6 +65833,9 @@ function buildFileStructure(files) {
 
   for (const file of files) {
     const path = file.caption.split("/");
+    if (path[0].includes("#EmptyFolder")) {
+      path[0] = path[0].replace("#EmptyFolder ",'');
+    }
     let currentFolder = root;
     for (const folderName of path.slice(0, -1)) {
       if (!currentFolder.content[folderName]) {
@@ -65863,7 +65863,6 @@ function buildFileStructure(files) {
 
 
 const fileInput = document.getElementById("file-input");
-const uploadButton = document.getElementById("upload-button");
 const modal = document.getElementById("modal");
 const modalImage = document.getElementById("modal-image");
 const closeBtn = document.querySelector(".close");
@@ -65871,7 +65870,7 @@ const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
 
 function openModal(item) {
-  modalImage.src = item.file.src; // используем свойство 'src' из файла в объекте 'item'
+  modalImage.src = item.file.src;
   modal.style.display = "block";
 }
 
@@ -65894,16 +65893,26 @@ prevBtn.addEventListener("click", showPrevImage);
 nextBtn.addEventListener("click", showNextImage);
 
 async function getThumbnailUrl(file) {
-  const thumbnail = file.sizes.find((size) => size.type === 's') || file.sizes[0];
-  const buffer = await client.downloadMedia(thumbnail, {});
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-  return "data:image/jpeg;base64," + base64;
+  try {
+    const thumbnail = file.sizes.find((size) => size.type === 's') || file.sizes[0] || file.size[0];
+    const buffer = await client.downloadMedia(thumbnail, {});
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    return "data:image/jpeg;base64," + base64;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes("Cannot read properties of null (reading 'sizes')")) {
+      // Обработка ошибки, когда sizes равно null (пустая папка)
+      console.log("empty folder");
+    } else {
+      // Обработка других ошибок
+      throw error;
+    }
+  }
 }
+
 
 async function lazyLoadImage(imageDivElement, file) {
   const fileId = file.id.toString();
 
-  // Check if image is cached before creating observer
   if (isImageCached(fileId)) {
     imageDivElement.style.backgroundImage = `url(${getCachedImage(fileId)})`;
     file.src = getCachedImage(fileId);
@@ -65914,7 +65923,7 @@ async function lazyLoadImage(imageDivElement, file) {
     if (entries[0].isIntersecting) {
       try {
         const buffer = await client.downloadMedia(file, {});
-        fullImageUrl=URL.createObjectURL(
+        fullImageUrl = URL.createObjectURL(
           new Blob([buffer], { type: 'image/png' } /* (1) */)
         );
         cacheImage(fileId, fullImageUrl);
@@ -65922,13 +65931,11 @@ async function lazyLoadImage(imageDivElement, file) {
         file.src = fullImageUrl;
       } catch (error) {
         console.error(`Error loading image ${fileId}: ${error}`);
-        // Handle image loading error as needed, e.g. show a fallback image
       }
       observer.disconnect();
     }
   }, {});
 
-  // Start observing the imageDivElement
   observer.observe(imageDivElement);
 }
 const renameButton = document.getElementById("rename-button");
@@ -65938,24 +65945,34 @@ function updateRenameButtonVisibility() {
   if (selectedCheckboxesCount === 1) {
     renameButton.style.display = "block";
   } else {
+    console.log(selectedCheckboxesCount);
     renameButton.style.display = "none";
   }
 }
-
 renameButton.addEventListener("click", async () => {
-  const selectedCheckbox = document.querySelector(".file-checkbox:checked");
-  const fileIndex = Array.from(document.querySelectorAll(".file-checkbox")).indexOf(selectedCheckbox);
-  const file = files[fileIndex];
-  const oldCaption = file.caption;
-  const newCaption = prompt("Enter a new caption for the image:", oldCaption);
+  const checkboxes = document.querySelectorAll(".file-checkbox:checked");
+  const selectedFiles = [];
+  const currentFolder = navigationStack[navigationStack.length - 1];
+  let currentFolderPath = navigationStack
+    .slice(1)
+    .map((folder) => folder.name)
+    .join("/");
+  console.log(currentFolderPath);
+  for (const checkbox of checkboxes) {
+    const listItem = checkbox.closest(".li-tile");
 
-  if (newCaption !== null && newCaption !== oldCaption) {
+
+    const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
+    selectedFiles.push(Object.values(currentFolder.content).flat()[fileIndex]);
+  }
+  for (const file of selectedFiles) {
     try {
-      await client.editMessageCaption("me", file.messageId, newCaption);
-      console.log("Caption successfully renamed:", newCaption);
-      refreshFilesAndFolders(); // Refresh the files and folders list
+      const fileId = file.messageId;
+      const newName = prompt("Введите новое имя файла");
+      await client.editMessage("me",{message:fileId, text:currentFolderPath.concat('/').concat(newName)});
+      console.log(fileId);
     } catch (error) {
-      console.error("Error renaming caption:", error);
+      console.error("Ошибка при удалении файла:", error);
     }
   }
   const files = await getFilesFromMeDialog();
@@ -65963,9 +65980,6 @@ renameButton.addEventListener("click", async () => {
   navigationStack = [fileStructure, ...navigationStack.slice(1)];
   displayFiles(navigationStack[navigationStack.length - 1]);
 });
-
-// Add updateRenameButtonVisibility to the event listeners for the checkboxes
-
 
 function updateDeleteButtonVisibility() {
   const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
@@ -65983,8 +65997,8 @@ deleteButton.addEventListener("click", async () => {
   const currentFolder = navigationStack[navigationStack.length - 1];
   for (const checkbox of checkboxes) {
     const listItem = checkbox.closest(".li-tile");
-    
-    
+
+
     const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
     selectedFiles.push(Object.values(currentFolder.content).flat()[fileIndex]);
   }
@@ -65994,13 +66008,12 @@ deleteButton.addEventListener("click", async () => {
       await client.deleteMessages("me", [fileId], {
         revoke: true,
       });
-      console.log("Файл успешно удален:");  
+      console.log("Файл успешно удален:");
     } catch (error) {
       console.error("Ошибка при удалении файла:", error);
     }
   }
 
-  // Обновите список файлов после удаления
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
   navigationStack = [fileStructure, ...navigationStack.slice(1)];
@@ -66010,40 +66023,38 @@ deleteButton.addEventListener("click", async () => {
 async function displayFiles(folder) {
   const fileList = document.getElementById("file-list");
   fileList.innerHTML = "";
-  console.log(folder.name);
   const currentFolderName = document.getElementById("currentfolder");
   const userPhoto = document.getElementById("user-photo");
   currentFolderName.textContent = folder.name;
   const backButton = document.getElementById("back-button");
   currentFiles = files.map((file, index) => ({ file, index }));
-
-  if (navigationStack.length <= 1) { // Если в стеке только корневая папка
+  if (navigationStack.length <= 1) {
     backButton.style.display = "none";
     userPhoto.style.display = "block";
   } else {
     backButton.style.display = "block";
     userPhoto.style.display = "none";
     backButton.onclick = () => {
-      navigationStack.pop(); // Удаляем текущую папку из стека
-      displayFiles(navigationStack[navigationStack.length - 1]); // Возвращаемся к предыдущей папке
+      navigationStack.pop();
+      displayFiles(navigationStack[navigationStack.length - 1]);
     };
   }
-
-  // Create an array to store all the promises returned by lazyLoadImage
   const lazyLoadPromises = [];
 
   for (const itemName in folder.content) {
     const items = folder.content[itemName];
-
     if (Array.isArray(items) && items[0].type === "file") {
       for (const item of items) {
+        if (item.name.endsWith('NoneFile')) {
+          continue;
+        }
         const listItem = document.createElement("li");
         listItem.className = "li-tile";
         const file = item.file;
         const thumbnailUrl = await getThumbnailUrl(file);
         const divElement = document.createElement("div");
         const checkbox = document.createElement("input");
-        const filename = document.createElement("div"); // Создаем элемент <p> для имени файла
+        const filename = document.createElement("div");
         checkbox.type = "checkbox";
         checkbox.className = "file-checkbox";
         divElement.style.backgroundImage = `url(${thumbnailUrl})`;
@@ -66051,12 +66062,10 @@ async function displayFiles(folder) {
         listItem.appendChild(divElement);
         divElement.addEventListener("click", () => openModal(item));
 
-        // Устанавливаем имя файла и добавляем его к элементу списка
-        filename.textContent = item.name || "Noname"; // Используйте подпись сообщения для имени файла
-        filename.className = "file-name"; // Добавляем класс для стилизации имени файла
+        filename.textContent = item.name || "Noname";
+        filename.className = "file-name";
         listItem.appendChild(filename);
-        
-        // Добавляем обработчик событий для чекбоксов
+
         checkbox.addEventListener("change", updateDeleteButtonVisibility);
         checkbox.addEventListener("change", updateMoveButtonVisibility);
         checkbox.addEventListener("change", updateRenameButtonVisibility);
@@ -66064,7 +66073,7 @@ async function displayFiles(folder) {
 
         fileList.appendChild(listItem);
 
-        // Store the promise returned by lazyLoadImage
+
         lazyLoadPromises.push(lazyLoadImage(divElement, file));
       }
     } else if (items.type === "folder") {
@@ -66078,29 +66087,20 @@ async function displayFiles(folder) {
       listItem.appendChild(folderTile);
       listItem.appendChild(divElement);
       listItem.onclick = () => {
-        navigationStack.push(items); // Добавляем открытую папку в стек
+        navigationStack.push(items);
         displayFiles(items);
       };
       fileList.appendChild(listItem);
     }
   }
 
-  // Wait for all the lazyLoadImage promises to resolve
-    // Wait for all the lazyLoadImage promises to resolve
-    await Promise.all(lazyLoadPromises);
 
-    // Обновляем видимость кнопки удаления после изменения списка файлов
-    updateDeleteButtonVisibility();
+  await Promise.all(lazyLoadPromises);
+
+
+  updateDeleteButtonVisibility();
 }
-  
-function arrayBufferFromFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsArrayBuffer(file);
-  });
-}
+
 async function refreshFilesAndFolders() {
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
@@ -66121,7 +66121,6 @@ async function refreshFilesAndFolders() {
   displayFiles(currentFolder);
 }
 async function uploadFile() {
-  const currentFolder = navigationStack[navigationStack.length - 1];
   const currentFolderPath = navigationStack
     .slice(1)
     .map((folder) => folder.name)
@@ -66140,7 +66139,7 @@ async function uploadFile() {
     });
 
     console.log("Файл успешно загружен:", result);
-    refreshFilesAndFolders(); // Обновляем список файлов и папок
+    refreshFilesAndFolders();
   } catch (error) {
     console.error("Ошибка при загрузке файла:", error);
   }
@@ -66158,66 +66157,55 @@ async function setUserProfilePhotoAsBackground() {
   }
 }
 const moveButton = document.getElementById("move-button");
-
+const acceptMoveButton = document.getElementById("accept-move-button");
+const moveBuffer = [];
 function updateMoveButtonVisibility() {
   const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
   if (selectedCheckboxesCount > 0) {
     moveButton.style.display = "block";
   } else {
     moveButton.style.display = "none";
+    acceptMoveButton.style.display = "none";
   }
 }
 moveButton.addEventListener("click", async () => {
-  const folderList = document.getElementById("folder-list");
-  folderList.innerHTML = "";
-
-  for (const folderName in fileStructure.content) {
-    const folder = fileStructure.content[folderName];
-
-    if (folder.type === "folder") {
-      const listItem = document.createElement("li");
-      listItem.className = "folder";
-      const divElement = document.createElement("div");
-      divElement.textContent = folder.name;
-      divElement.className = "folder-tile";
-      listItem.appendChild(divElement);
-
-      listItem.onclick = async () => {
-        const newFolderPath = folder.name;
-
-        // Перемещение выбранных файлов в новую папку
-        for (const file of filesToMove) {
-          try {
-            const messageId = file.messageId;
-            const newCaption = newFolderPath + "/" + file.name;
-            await client.editMessageCaption("me", messageId, newCaption);
-            console.log("Файл успешно перемещен:", file.name);
-          } catch (error) {
-            console.error("Ошибка при перемещении файла:", error);
-          }
-        }
-
-        // Обновление списка файлов после перемещения
-        const files = await getFilesFromMeDialog();
-        const fileStructure = buildFileStructure(files);
-        navigationStack = [fileStructure, ...navigationStack.slice(1)];
-        displayFiles(navigationStack[navigationStack.length - 1]);
-      };
-
-      folderList.appendChild(listItem);
-    }
+  const checkboxes = document.querySelectorAll(".file-checkbox:checked");
+  const currentFolder = navigationStack[navigationStack.length - 1];
+  for (const checkbox of checkboxes) {
+    const listItem = checkbox.closest(".li-tile");
+    moveButton.style.display = "none";
+    renameButton.style.display = "none";
+    acceptMoveButton.style.display = "block";
+    const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
+    moveBuffer.push(Object.values(currentFolder.content).flat()[fileIndex]);
   }
-
-  // Показать список папок для выбора
-  document.getElementById("folder-selection-modal").style.display = "block";
 });
 
+acceptMoveButton.addEventListener("click", async()=> {
+  for (const file of moveBuffer) {
+    try {
+      let currentFolderPath = navigationStack
+      .slice(1)
+      .map((folder) => folder.name)
+      .join("/");
+      console.log(currentFolderPath);
+      const fileId = file.messageId;
+      const filename = file.name;
+      //const newName = prompt("Введите новое имя файла");
+      await client.editMessage("me",{message:fileId, text:currentFolderPath.concat('/').concat(filename)});
+      console.log(fileId);
+    } catch (error) {
+      console.error("Ошибка при удалении файла:", error);
+    }
+  }
+  moveBuffer.length = 0;
+});
 async function init() {
   await client.connect();
   setUserProfilePhotoAsBackground();
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
-  navigationStack.push(fileStructure); // Добавляем корневую папку в историю навигации
+  navigationStack.push(fileStructure);
   displayFiles(fileStructure);
   const fileInput = document.getElementById("file-input");
   const uploadButton = document.getElementById("upload-button");
@@ -66230,7 +66218,6 @@ async function init() {
     if (event.target.files.length > 0) {
       const file = event.target.files[0];
       await uploadFile(file);
-      // Обновите список файлов после загрузки
       const files = await getFilesFromMeDialog();
       const fileStructure = buildFileStructure(files);
       navigationStack = [fileStructure, ...navigationStack.slice(1)];
