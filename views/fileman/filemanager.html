@@ -11,11 +11,24 @@
 <body>
   <div class="file-loading">
     <input type="file" id="file-input" style="display: none;">
-    <button id="upload-button">
+    <button id="upload-menu-button">
       <svg class="ufo-icon__icon" width="24" height="24" role="none" viewBox="0 0 24 24">
         <path fill="currentColor" d="M13 11V3.5c0-.276-.214-.5-.505-.5h-.99a.507.507 0 0 0-.505.5V11H3.5c-.276 0-.5.214-.5.505v.99c0 .279.23.505.5.505H11v7.5c0 .276.214.5.505.5h.99c.279 0 .505-.23.505-.5V13h7.5c.276 0 .5-.214.5-.505v-.99a.507.507 0 0 0-.5-.505H13z"></path>
       </svg>
     </button>
+    <div id="upload-menu" style="display: none;">
+      <div id="close-upload-menu">
+        <svg class="ufo-icon__icon" width="24" height="24" role="none" viewBox="0 0 24 24">
+          <path fill="currentColor" d="M13 11V3.5c0-.276-.214-.5-.505-.5h-.99a.507.507 0 0 0-.505.5V11H3.5c-.276 0-.5.214-.5.505v.99c0 .279.23.505.5.505H11v7.5c0 .276.214.5.505.5h.99c.279 0 .505-.23.505-.5V13h7.5c.276 0 .5-.214.5-.505v-.99a.507.507 0 0 0-.5-.505H13z"></path>
+        </svg>
+      </div>
+      <div id="upload-button" class="upload-menu-buttons">
+        <div class="upload-menu-text">Загрузить</div>
+      </div>
+      <div id="create-folder" class="upload-menu-buttons">
+        <div class="upload-menu-text">Папка</div>
+      </div>
+    </div>
   </div>
   <div id="header">
     <div id="user-photo"></div>

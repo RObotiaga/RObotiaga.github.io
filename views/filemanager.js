@@ -37,11 +37,11 @@ async function loadImage(file) {
 }
 function openModal(index) {
   currentImageIndex = index;
-  
+
   if (!files[currentImageIndex].src) {
     loadImage(files[currentImageIndex]);
   }
-  
+
   modalImage.src = files[currentImageIndex].src;
   modal.style.display = "block";
 }
@@ -79,7 +79,7 @@ async function lazyLoadImage(imageDivElement, file) {
       try {
         //imageDivElement.style.backgroundColor = `rgb(135,116,225)`;
         const buffer = await client.downloadMedia(file, {});
-        fullImageUrl=URL.createObjectURL(
+        fullImageUrl = URL.createObjectURL(
           new Blob([buffer], { type: 'image/png' } /* (1) */)
         );
         imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
@@ -118,7 +118,7 @@ async function displayFiles(files) {
     if (nextIndex < files.length) {
       nextFileDate = new Date(files[nextIndex].date * 1000);
     }
-    
+
     if (currentGroupStartDate - fileDate >= groupDuration) {
       if (nextFileDate && currentGroupStartDate - nextFileDate >= groupDuration) {
         currentGroupStartDate = nextFileDate;
@@ -128,10 +128,10 @@ async function displayFiles(files) {
         addGroupHeader(currentGroupStartDate);
       }
     }
-    
+
     const listItem = document.createElement("li");
     listItem.className = "li-tile";
-    
+
     const thumbnailUrl = await getThumbnailUrl(file);
 
     // Create a div element and set its background-image CSS property

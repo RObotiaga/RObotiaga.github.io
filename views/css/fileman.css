@@ -149,8 +149,6 @@ img.footerbuttonsvg {
 }
 .file-loading {
     position: fixed;
-    right: min(20px,2vw);
-    bottom: min(80px,17vw);
     z-index: 13;
 }
 .folder {
@@ -175,12 +173,33 @@ img.footerbuttonsvg {
     background-color: #a4a4a4;
     border-radius: 5px;
 }
-#upload-button {
+#upload-menu-button {
+    position: fixed;
     width: min(16vw,80px);
     height: min(16vw,80px);
+    right: max(10px,3vw);
+    bottom: min(70px,17vw);
     border: none;
     border-radius: 50%;
     background-color: rgb(135,116,225);
+}
+div#close-upload-menu {
+    float: right;
+    color: white;
+}
+div#upload-menu {
+    width: 89.2vw;
+    position: fixed;
+    height: max(20vw,100px);
+    bottom: min(59px,15vw);
+    margin-left: min(2.6vw,20px);
+    border: none;
+    padding: 3vw;
+    border-radius: 3vw 3vw 0 0;
+    background-color: #3a3a3a;
+}
+#create-folder {
+    background: url(../img/create_folder.svg);
 }
 .footer {
     position: fixed;
@@ -188,7 +207,72 @@ img.footerbuttonsvg {
     width: 100%;
     background-color: #303134;
     z-index: 13;
-    
+}
+.upload-menu-buttons {
+    width: max(20vw,30px);
+    border: none;
+    height: max(20vw,30px);
+    float: left;
+    margin-right: 2vw;
+}
+
+
+.upload-menu-buttons{
+    position: relative;
+    background-color: black;
+    border-radius: 4em;
+    font-size: 16px;
+    color: white;
+    cursor:pointer;
+    user-select:none;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition-duration: 0.4s;
+    -webkit-transition-duration: 0.4s; /* Safari */
+  }
+  
+  .upload-menu-buttons:hover {
+    transition-duration: 0.1s;
+  }
+  
+  .upload-menu-buttons:after {
+    content: "";
+    display: block;
+    position: absolute;
+    border-radius: 4em;
+    left: 0;
+    top:0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: all 0.5s;
+    box-shadow: 0 0 10px 40px white;
+  }
+  
+  .upload-menu-buttons:active:after {
+    box-shadow: 0 0 0 0 white;
+    position: absolute;
+    border-radius: 4em;
+    left: 0;
+    top:0;
+    opacity: 1;
+    transition: 0s;
+  }
+  
+  .upload-menu-buttons:active {
+    top: 1px;
+  }
+
+
+#upload-button {
+    background: url(../img/upload.svg);
+}
+.upload-menu-text {
+    text-align: center;
+    transform: translate(0px, 19vw);
+    color: whitesmoke;
+    font-size: 4vw;
 }
 .UIBoxBackground 
 {

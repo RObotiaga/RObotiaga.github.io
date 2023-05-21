@@ -66077,6 +66077,10 @@ async function displayFiles(folder) {
         lazyLoadPromises.push(lazyLoadImage(divElement, file));
       }
     } else if (items.type === "folder") {
+      console.log(items);
+      if (Object.keys(items.content).length === 1 && Object.keys(items.content)[0] === "NoneFile") {
+        console.log("Папка пустая");
+      }
       const listItem = document.createElement("li");
       listItem.className = "li-tile";
       const divElement = document.createElement("div");
@@ -66188,7 +66192,6 @@ acceptMoveButton.addEventListener("click", async()=> {
       .slice(1)
       .map((folder) => folder.name)
       .join("/");
-      console.log(currentFolderPath);
       const fileId = file.messageId;
       const filename = file.name;
       //const newName = prompt("Введите новое имя файла");
@@ -66200,6 +66203,24 @@ acceptMoveButton.addEventListener("click", async()=> {
   }
   moveBuffer.length = 0;
 });
+const createFolder = document.getElementById("create-folder");
+createFolder.addEventListener("click", async () => {
+  let currentFolderPath = navigationStack
+      .slice(1)
+      .map((folder) => folder.name)
+      .join("/");
+  const createFolderName = prompt("Введите имя папки");
+  if (currentFolderPath === '') {
+    await client.sendMessage("me",{message:"#EmptyFolder ".concat(currentFolderPath).concat(createFolderName).concat("/").concat('NoneFile')});
+  } else {
+    await client.sendMessage("me",{message:"#EmptyFolder ".concat(currentFolderPath).concat("/").concat(createFolderName).concat("/").concat('NoneFile')});
+  }
+  const files = await getFilesFromMeDialog();
+  const fileStructure = buildFileStructure(files);
+  navigationStack = [fileStructure, ...navigationStack.slice(1)];
+  displayFiles(navigationStack[navigationStack.length - 1]);
+});
+
 async function init() {
   await client.connect();
   setUserProfilePhotoAsBackground();
@@ -66209,6 +66230,19 @@ async function init() {
   displayFiles(fileStructure);
   const fileInput = document.getElementById("file-input");
   const uploadButton = document.getElementById("upload-button");
+  const closeUploadButton = document.getElementById("close-upload-menu");
+  const uploadMenu = document.getElementById("upload-menu");
+  const uploadMenuButton = document.getElementById("upload-menu-button");
+
+  uploadMenuButton.addEventListener("click", () => {
+    uploadMenu.style.display = "block";
+    uploadMenuButton.style.display = "none";
+  });
+
+  closeUploadButton.addEventListener("click", () => {
+    uploadMenu.style.display = "none";
+    uploadMenuButton.style.display = "block";
+  });
 
   uploadButton.addEventListener("click", () => {
     fileInput.click();
