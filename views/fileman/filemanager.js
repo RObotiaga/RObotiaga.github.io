@@ -109,17 +109,41 @@ const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
 
 async function downloadVideoFile(message) {
-  const buffer = await client.downloadMedia(message.video, {progressCallback : console.log});
+  const progressBar = document.getElementById('videoProgressBar');
+
+  let totalSize = BigInt(0);
+  let downloadedSize = BigInt(0);
+
+  const buffer = await client.downloadMedia(message.video, {
+    progressCallback: (downloaded, fullSize) => {
+      downloadedSize = BigInt(downloaded);
+      totalSize = BigInt(fullSize);
+      const percentage = Number((downloadedSize * BigInt(100) / totalSize).toString());
+
+      console.log(downloadedSize.toString(), totalSize.toString(), percentage);
+      progressBar.value = percentage;
+    }});
+  progressBar.value=100;
   const blobFile = new Blob([buffer], { type: 'video/mp4' });
   const url = URL.createObjectURL(blobFile);
-  console.log(url);
+
+  // Check if the download was completed
+  if (downloadedSize === totalSize) {
+    console.log('Download completed');
+  }
+
   return url;
 }
-async function openModal(item) {
 
+
+async function openModal(item) {
   if (Array.isArray(item.file)) {
     modalVideo.src = '';
     modalv.style.display = "block";
+
+    const progressBar = document.getElementById('videoProgressBar');
+    progressBar.value = 0; // Reset the progress bar
+
     videoSrc = await downloadVideoFile(item);
     modalVideo.src = videoSrc;
   } else {
@@ -127,6 +151,7 @@ async function openModal(item) {
     modal.style.display = "block";
   }
 }
+
 
 function closeModal() {
   modal.style.display = "none";
@@ -151,21 +176,6 @@ closevBtn.addEventListener("click", closeModalV);
 prevBtn.addEventListener("click", showPrevImage);
 nextBtn.addEventListener("click", showNextImage);
 
-async function getThumbnailUrl(file) {
-  try {
-    const thumbnail = file.sizes?.find((size) => size.type === 's') ?? file.sizes?.[0] ?? file.size?.[0];
-    const buffer = await client.downloadMedia(thumbnail, {});
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-    return "data:image/jpeg;base64," + base64;
-  } catch (error) {
-    if (error instanceof TypeError && error.message.includes("Cannot read properties of null (reading 'sizes')")) {
-      console.log("empty folder");
-    } else {
-      throw error;
-    }
-  }
-}
-
 async function lazyLoadImage(imageDivElement, item) {
   let fileId;
   if (!Array.isArray(item.file)) {
@@ -181,8 +191,6 @@ async function lazyLoadImage(imageDivElement, item) {
     if (entries[0].isIntersecting) {
       try {
         let fullImageUrl;
-        console.log(item.file);
-        console.log(Array.isArray(item.file));
         if (Array.isArray(item.file)) {
           const [, thumb] = item.file;
           const buffer = await client.downloadMedia(item.message, { thumb });

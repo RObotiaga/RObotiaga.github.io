@@ -270,6 +270,12 @@ div#upload-menu {
     box-shadow: 0 0 10px 40px white;
 }
 
+progress#videoProgressBar {
+    display: block;
+    width: 100%;
+    margin-top: -4px;
+}
+
 .upload-menu-buttons:active:after {
     box-shadow: 0 0 0 0 white;
     position: absolute;
