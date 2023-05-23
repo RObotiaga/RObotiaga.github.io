@@ -15,11 +15,30 @@ async function getFilesFromMeDialog() {
   const messages = await client.getMessages(mePeerId);
 
   files = messages
-    .filter((message) => message.media && message.media instanceof Api.MessageMediaPhoto)
-    .map((message) => message.media.photo);
+    .filter((message) => {
+      if (message.media) {
+        if (message.media instanceof Api.MessageMediaPhoto) {
+          return true;
+        } else if (message.media instanceof Api.MessageMediaDocument) {
+          const document = message.media.document;
+          console.log(document);
+          return document.mime_type && document.mime_type.startsWith("video/");
+        }
+      }
+      return false;
+    })
+    .map((message) => {
+      if (message.media instanceof Api.MessageMediaPhoto) {
+        return message.media.photo;
+      } else if (message.media instanceof Api.MessageMediaDocument) {
+        return message.media.document;
+      }
+    });
+
   files.sort((a, b) => b.date - a.date);
   return files;
 }
+
 
 const modal = document.getElementById("modal");
 const modalImage = document.getElementById("modal-image");
@@ -28,13 +47,28 @@ const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
 
 async function loadImage(file) {
-  const buffer = await client.downloadMedia(file, {});
+  if (file instanceof Api.Document) {
+    const buffer = await client.downloadMedia(file, {});
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    const videoUrl = "data:video/mp4;base64," + base64;
 
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-  const fullImageUrl = "data:image/jpeg;base64," + base64;
+    const videoElement = document.createElement("video");
+    videoElement.src = videoUrl;
+    videoElement.controls = true;
+    console.log(videoUrl);
+    const videoContainer = document.getElementById("video-container");
+    videoContainer.innerHTML = "";
+    videoContainer.appendChild(videoElement);
+  } else if (file instanceof Api.Photo) {
+    const buffer = await client.downloadMedia(file, {});
 
-  file.src = fullImageUrl;
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    const fullImageUrl = "data:image/jpeg;base64," + base64;
+
+    file.src = fullImageUrl;
+  }
 }
+
 function openModal(index) {
   currentImageIndex = index;
 
@@ -42,9 +76,18 @@ function openModal(index) {
     loadImage(files[currentImageIndex]);
   }
 
-  modalImage.src = files[currentImageIndex].src;
+  if (files[currentImageIndex] instanceof Api.Document) {
+    modalImage.style.display = "none";
+    videoContainer.style.display = "block";
+  } else if (files[currentImageIndex] instanceof Api.Photo) {
+    modalImage.src = files[currentImageIndex].src;
+    modalImage.style.display = "block";
+    videoContainer.style.display = "none";
+  }
+
   modal.style.display = "block";
 }
+
 
 function closeModal() {
   modal.style.display = "none";
@@ -132,23 +175,39 @@ async function displayFiles(files) {
     const listItem = document.createElement("li");
     listItem.className = "li-tile";
 
-    const thumbnailUrl = await getThumbnailUrl(file);
+    if (file instanceof Api.Photo) {
+      const thumbnailUrl = await getThumbnailUrl(file);
 
-    // Create a div element and set its background-image CSS property
-    const divElement = document.createElement("div");
-    divElement.style.backgroundImage = `url(${thumbnailUrl})`;
-    divElement.className = "image-tile";
+      // Create a div element and set its background-image CSS property
+      const divElement = document.createElement("div");
+      divElement.style.backgroundImage = `url(${thumbnailUrl})`;
+      divElement.className = "image-tile";
 
-    // Lazy load the full-resolution image
+      // Lazy load the full-resolution image
 
-    // Add event listener to open the modal
-    divElement.addEventListener("click", () => openModal(index));
+      // Add event listener to open the modal
+      divElement.addEventListener("click", () => openModal(index));
 
-    listItem.appendChild(divElement);
+      listItem.appendChild(divElement);
+    } else if (file instanceof Api.Document) {
+      const videoIcon = document.createElement("i");
+      videoIcon.className = "fas fa-video";
+
+      const divElement = document.createElement("div");
+      divElement.className = "video-tile";
+      divElement.appendChild(videoIcon);
+
+      // Add event listener to open the modal
+      divElement.addEventListener("click", () => openModal(index));
+
+      listItem.appendChild(divElement);
+    }
+
     fileList.appendChild(listItem);
-    lazyLoadImage(divElement, file);
+    lazyLoadImage(listItem.firstChild, file);
   }
 }
+
 async function setUserProfilePhotoAsBackground() {
   const buffer = await client.downloadProfilePhoto('me')
   const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));

@@ -65812,17 +65812,36 @@ function isImageCached(fileId) {
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
   const messages = await client.getMessages(mePeerId, { limit: 100 });
-  files = messages
-    .filter((message) => message.media instanceof Api.MessageMediaPhoto || message.message.startsWith("#EmptyFolder " ))
+
+  const photos = messages
+    .filter(
+      (message) =>
+        message.media instanceof Api.MessageMediaPhoto ||
+        message.message.startsWith("#EmptyFolder ")
+    )
     .map((message) => ({
+      message: message,
       photo: message.media && message.media.photo,
       caption: message.message,
       date: message.date,
       messageId: message.id,
     }));
-  files.sort((a, b) => b.date - a.date);
+
+  const videos = messages
+  .filter((message) => message.media instanceof Api.MessageMediaDocument && message.media.document.mimeType === "video/mp4")
+  .map((message) => ({
+    message: message,
+    video: message.media.document,
+    caption: message.message,
+    date: message.date,
+    messageId: message.id,
+    photo: message.document.thumbs,
+  }))
+  .sort((a, b) => b.date - a.date);
+  const files = [...photos, ...videos].sort((a, b) => b.date - a.date);
   return files;
 }
+
 
 function buildFileStructure(files) {
   const root = {
@@ -65830,7 +65849,6 @@ function buildFileStructure(files) {
     type: "folder",
     content: {},
   };
-
   for (const file of files) {
     const path = file.caption.split("/");
     if (path[0].includes("#EmptyFolder")) {
@@ -65855,8 +65873,11 @@ function buildFileStructure(files) {
       name: fileName,
       type: "file",
       file: file.photo,
-      messageId: file.messageId
+      messageId: file.messageId,
+      message: file.message,
+      video: file.video,
     });
+    
   }
   return root;
 }
@@ -65864,18 +65885,40 @@ function buildFileStructure(files) {
 
 const fileInput = document.getElementById("file-input");
 const modal = document.getElementById("modal");
+const modalv =document.getElementById("modalv");
 const modalImage = document.getElementById("modal-image");
-const closeBtn = document.querySelector(".close");
+const modalVideo = document.getElementById("modal-video");
+const closeBtn = document.getElementById("close");
+const closevBtn = document.getElementById("closev");
 const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
 
-function openModal(item) {
-  modalImage.src = item.file.src;
-  modal.style.display = "block";
+async function downloadVideoFile(message) {
+  const buffer = await client.downloadMedia(message.video, {progressCallback : console.log});
+  const blobFile = new Blob([buffer], { type: 'video/mp4' });
+  const url = URL.createObjectURL(blobFile);
+  console.log(url);
+  return url;
+}
+async function openModal(item) {
+
+  if (Array.isArray(item.file)) {
+    modalVideo.src = '';
+    modalv.style.display = "block";
+    videoSrc = await downloadVideoFile(item);
+    modalVideo.src = videoSrc;
+  } else {
+    modalImage.src = item.file.src;
+    modal.style.display = "block";
+  }
 }
 
 function closeModal() {
   modal.style.display = "none";
+}
+
+function closeModalV() {
+  modalv.style.display = "none";
 }
 
 function showPrevImage() {
@@ -65889,55 +65932,69 @@ function showNextImage() {
 }
 
 closeBtn.addEventListener("click", closeModal);
+closevBtn.addEventListener("click", closeModalV);
 prevBtn.addEventListener("click", showPrevImage);
 nextBtn.addEventListener("click", showNextImage);
 
 async function getThumbnailUrl(file) {
   try {
-    const thumbnail = file.sizes.find((size) => size.type === 's') || file.sizes[0] || file.size[0];
+    const thumbnail = file.sizes?.find((size) => size.type === 's') ?? file.sizes?.[0] ?? file.size?.[0];
     const buffer = await client.downloadMedia(thumbnail, {});
     const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
     return "data:image/jpeg;base64," + base64;
   } catch (error) {
     if (error instanceof TypeError && error.message.includes("Cannot read properties of null (reading 'sizes')")) {
-      // Обработка ошибки, когда sizes равно null (пустая папка)
       console.log("empty folder");
     } else {
-      // Обработка других ошибок
       throw error;
     }
   }
 }
 
-
-async function lazyLoadImage(imageDivElement, file) {
-  const fileId = file.id.toString();
-
-  if (isImageCached(fileId)) {
-    imageDivElement.style.backgroundImage = `url(${getCachedImage(fileId)})`;
-    file.src = getCachedImage(fileId);
-    return;
+async function lazyLoadImage(imageDivElement, item) {
+  let fileId;
+  if (!Array.isArray(item.file)) {
+    fileId = item.file.id.toString();
+    if (isImageCached(fileId)) {
+      imageDivElement.style.backgroundImage = `url(${getCachedImage(fileId)})`;
+      item.file.src = getCachedImage(fileId);
+      return;
+    }
   }
-
   const observer = new IntersectionObserver(async (entries) => {
+
     if (entries[0].isIntersecting) {
       try {
-        const buffer = await client.downloadMedia(file, {});
-        fullImageUrl = URL.createObjectURL(
-          new Blob([buffer], { type: 'image/png' } /* (1) */)
-        );
-        cacheImage(fileId, fullImageUrl);
+        let fullImageUrl;
+        console.log(item.file);
+        console.log(Array.isArray(item.file));
+        if (Array.isArray(item.file)) {
+          const [, thumb] = item.file;
+          const buffer = await client.downloadMedia(item.message, { thumb });
+          fullImageUrl = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
+        } else {
+          const buffer = await client.downloadMedia(item.file);
+          fullImageUrl = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
+          cacheImage(fileId, fullImageUrl);
+        }
         imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
-        file.src = fullImageUrl;
+        item.file.src = fullImageUrl;
       } catch (error) {
-        console.error(`Error loading image ${fileId}: ${error}`);
+        console.error(`Error loading image ${error}`);
       }
       observer.disconnect();
     }
-  }, {});
+  });
 
   observer.observe(imageDivElement);
 }
+async function downloadThumbForVideo(item) {
+  const [, thumb] = item.file;
+  const buff = await client.downloadMedia(item.message, { thumb });
+  const fullImageUrl = URL.createObjectURL(new Blob([buff], { type: 'image/png' }));
+  return fullImageUrl;
+}
+
 const renameButton = document.getElementById("rename-button");
 
 function updateRenameButtonVisibility() {
@@ -65945,7 +66002,6 @@ function updateRenameButtonVisibility() {
   if (selectedCheckboxesCount === 1) {
     renameButton.style.display = "block";
   } else {
-    console.log(selectedCheckboxesCount);
     renameButton.style.display = "none";
   }
 }
@@ -65957,7 +66013,6 @@ renameButton.addEventListener("click", async () => {
     .slice(1)
     .map((folder) => folder.name)
     .join("/");
-  console.log(currentFolderPath);
   for (const checkbox of checkboxes) {
     const listItem = checkbox.closest(".li-tile");
 
@@ -65970,7 +66025,6 @@ renameButton.addEventListener("click", async () => {
       const fileId = file.messageId;
       const newName = prompt("Введите новое имя файла");
       await client.editMessage("me",{message:fileId, text:currentFolderPath.concat('/').concat(newName)});
-      console.log(fileId);
     } catch (error) {
       console.error("Ошибка при удалении файла:", error);
     }
@@ -66019,7 +66073,6 @@ deleteButton.addEventListener("click", async () => {
   navigationStack = [fileStructure, ...navigationStack.slice(1)];
   displayFiles(navigationStack[navigationStack.length - 1]);
 });
-
 async function displayFiles(folder) {
   const fileList = document.getElementById("file-list");
   fileList.innerHTML = "";
@@ -66040,24 +66093,24 @@ async function displayFiles(folder) {
     };
   }
   const lazyLoadPromises = [];
-
   for (const itemName in folder.content) {
     const items = folder.content[itemName];
-    if (Array.isArray(items) && items[0].type === "file") {
+    if (Array.isArray(items)) {
       for (const item of items) {
         if (item.name.endsWith('NoneFile')) {
           continue;
         }
         const listItem = document.createElement("li");
         listItem.className = "li-tile";
-        const file = item.file;
-        const thumbnailUrl = await getThumbnailUrl(file);
         const divElement = document.createElement("div");
         const checkbox = document.createElement("input");
         const filename = document.createElement("div");
         checkbox.type = "checkbox";
         checkbox.className = "file-checkbox";
-        divElement.style.backgroundImage = `url(${thumbnailUrl})`;
+        /*if (Array.isArray(item.file)) {
+          thumbnailUrl = await downloadThumbForVideo(item);
+        }
+        divElement.style.backgroundImage = `url(${thumbnailUrl})`;*/
         divElement.className = "image-tile";
         listItem.appendChild(divElement);
         divElement.addEventListener("click", () => openModal(item));
@@ -66066,18 +66119,19 @@ async function displayFiles(folder) {
         filename.className = "file-name";
         listItem.appendChild(filename);
 
-        checkbox.addEventListener("change", updateDeleteButtonVisibility);
-        checkbox.addEventListener("change", updateMoveButtonVisibility);
-        checkbox.addEventListener("change", updateRenameButtonVisibility);
+        checkbox.addEventListener("change", async () => {
+          await updateDeleteButtonVisibility();
+          await updateMoveButtonVisibility();
+          await updateRenameButtonVisibility();
+        });
         listItem.appendChild(checkbox);
 
         fileList.appendChild(listItem);
 
 
-        lazyLoadPromises.push(lazyLoadImage(divElement, file));
+        lazyLoadPromises.push(lazyLoadImage(divElement, item));
       }
     } else if (items.type === "folder") {
-      console.log(items);
       if (Object.keys(items.content).length === 1 && Object.keys(items.content)[0] === "NoneFile") {
         console.log("Папка пустая");
       }
@@ -66196,7 +66250,6 @@ acceptMoveButton.addEventListener("click", async()=> {
       const filename = file.name;
       //const newName = prompt("Введите новое имя файла");
       await client.editMessage("me",{message:fileId, text:currentFolderPath.concat('/').concat(filename)});
-      console.log(fileId);
     } catch (error) {
       console.error("Ошибка при удалении файла:", error);
     }
@@ -66210,6 +66263,9 @@ createFolder.addEventListener("click", async () => {
       .map((folder) => folder.name)
       .join("/");
   const createFolderName = prompt("Введите имя папки");
+  if (createFolderName === null) {
+    return
+  }
   if (currentFolderPath === '') {
     await client.sendMessage("me",{message:"#EmptyFolder ".concat(currentFolderPath).concat(createFolderName).concat("/").concat('NoneFile')});
   } else {
