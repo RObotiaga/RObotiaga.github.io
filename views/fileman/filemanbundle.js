@@ -65816,8 +65816,8 @@ async function getFilesFromMeDialog() {
   const photos = messages
     .filter(
       (message) =>
-        message.media instanceof Api.MessageMediaPhoto ||
-        message.message.startsWith("#EmptyFolder ")
+        (message.media instanceof Api.MessageMediaPhoto ||
+        message.message?.startsWith("#EmptyFolder "))
     )
     .map((message) => ({
       message: message,
@@ -65909,6 +65909,7 @@ async function downloadVideoFile(message) {
       progressBar.value = percentage;
     }});
   progressBar.value=100;
+  progressBar.style.display = "none";
   const blobFile = new Blob([buffer], { type: 'video/mp4' });
   const url = URL.createObjectURL(blobFile);
 

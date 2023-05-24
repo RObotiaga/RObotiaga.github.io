@@ -42,7 +42,7 @@ async function getFilesFromMeDialog() {
 
 const modal = document.getElementById("modal");
 const modalImage = document.getElementById("modal-image");
-const closeBtn = document.querySelector(".close");
+const closeBtn = document.getElementById("close");
 const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
 

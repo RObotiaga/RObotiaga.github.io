@@ -79,7 +79,7 @@ html {
 }
 
 img.footerbuttonsvg {
-    width: 16vw;
+    width: 20vw;
     height: 8vw;
     margin: 0;
     max-height: 40px;
@@ -240,6 +240,8 @@ div#upload-menu {
     position: relative;
     background-color: black;
     border-radius: 4em;
+    max-width: 100px;
+    max-height: 100px;
     font-size: 16px;
     color: white;
     cursor: pointer;
@@ -249,7 +251,6 @@ div#upload-menu {
     cursor: pointer;
     transition-duration: 0.4s;
     -webkit-transition-duration: 0.4s;
-    /* Safari */
 }
 
 
@@ -298,9 +299,9 @@ progress#videoProgressBar {
 
 .upload-menu-text {
     text-align: center;
-    transform: translate(0px, 19vw);
+    transform: translate(0px, min(19vw,80px));
     color: whitesmoke;
-    font-size: 4vw;
+    font-size: min(4vw,20px);
 }
 
 .UIBoxBackground {
@@ -364,7 +365,7 @@ progress#videoProgressBar {
 }
 
 .footer-button-text {
-    width: 17vw;
+    width: 20vw;
 }
 
 .close:hover,
