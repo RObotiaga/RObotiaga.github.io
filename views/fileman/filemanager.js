@@ -26,12 +26,12 @@ function isImageCached(fileId) {
 }
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
-  const messages = await client.getMessages(mePeerId, { limit: 100 });
+  const messages = await client.getMessages(mePeerId);
 
   const photos = messages
     .filter(
       (message) =>
-        (message.media instanceof Api.MessageMediaPhoto ||
+      (message.media instanceof Api.MessageMediaPhoto ||
         message.message?.startsWith("#EmptyFolder "))
     )
     .map((message) => ({
@@ -43,16 +43,16 @@ async function getFilesFromMeDialog() {
     }));
 
   const videos = messages
-  .filter((message) => message.media instanceof Api.MessageMediaDocument && message.media.document.mimeType === "video/mp4")
-  .map((message) => ({
-    message: message,
-    video: message.media.document,
-    caption: message.message,
-    date: message.date,
-    messageId: message.id,
-    photo: message.document.thumbs,
-  }))
-  .sort((a, b) => b.date - a.date);
+    .filter((message) => message.media instanceof Api.MessageMediaDocument && message.media.document.mimeType === "video/mp4")
+    .map((message) => ({
+      message: message,
+      video: message.media.document,
+      caption: message.message,
+      date: message.date,
+      messageId: message.id,
+      photo: message.document.thumbs,
+    }))
+    .sort((a, b) => b.date - a.date);
   const files = [...photos, ...videos].sort((a, b) => b.date - a.date);
   return files;
 }
@@ -67,7 +67,7 @@ function buildFileStructure(files) {
   for (const file of files) {
     const path = file.caption.split("/");
     if (path[0].includes("#EmptyFolder")) {
-      path[0] = path[0].replace("#EmptyFolder ",'');
+      path[0] = path[0].replace("#EmptyFolder ", '');
     }
     let currentFolder = root;
     for (const folderName of path.slice(0, -1)) {
@@ -92,15 +92,15 @@ function buildFileStructure(files) {
       message: file.message,
       video: file.video,
     });
-    
+
   }
   return root;
 }
 
-
+const currentFolderName = document.getElementById("currentfolder");
 const fileInput = document.getElementById("file-input");
 const modal = document.getElementById("modal");
-const modalv =document.getElementById("modalv");
+const modalv = document.getElementById("modalv");
 const modalImage = document.getElementById("modal-image");
 const modalVideo = document.getElementById("modal-video");
 const closeBtn = document.getElementById("close");
@@ -122,8 +122,9 @@ async function downloadVideoFile(message) {
 
       console.log(downloadedSize.toString(), totalSize.toString(), percentage);
       progressBar.value = percentage;
-    }});
-  progressBar.value=100;
+    }
+  });
+  progressBar.value = 100;
   progressBar.style.display = "none";
   const blobFile = new Blob([buffer], { type: 'video/mp4' });
   const url = URL.createObjectURL(blobFile);
@@ -212,12 +213,6 @@ async function lazyLoadImage(imageDivElement, item) {
 
   observer.observe(imageDivElement);
 }
-async function downloadThumbForVideo(item) {
-  const [, thumb] = item.file;
-  const buff = await client.downloadMedia(item.message, { thumb });
-  const fullImageUrl = URL.createObjectURL(new Blob([buff], { type: 'image/png' }));
-  return fullImageUrl;
-}
 
 const renameButton = document.getElementById("rename-button");
 
@@ -248,11 +243,18 @@ renameButton.addEventListener("click", async () => {
     try {
       const fileId = file.messageId;
       const newName = prompt("Введите новое имя файла");
-      await client.editMessage("me",{message:fileId, text:currentFolderPath.concat('/').concat(newName)});
+      if (currentFolderPath === '') {
+        await client.editMessage("me", { message: fileId, text: currentFolderPath.concat(newName) });
+      } else {
+        await client.editMessage("me", { message: fileId, text: currentFolderPath.concat('/').concat(newName) });
+      }
     } catch (error) {
-      console.error("Ошибка при удалении файла:", error);
+      console.error("Ошибка при переименовании файла:", error);
     }
   }
+  renameButton.style.display = "none";
+  moveButton.style.display = "none";
+  acceptMoveButton.style.display = "none";
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
   navigationStack = [fileStructure, ...navigationStack.slice(1)];
@@ -262,8 +264,12 @@ renameButton.addEventListener("click", async () => {
 function updateDeleteButtonVisibility() {
   const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
   if (selectedCheckboxesCount > 0) {
+    currentFolderName.style.removeProperty('transition');
+    currentFolderName.style.maxWidth = '22vw';
     deleteButton.style.display = "block";
   } else {
+    currentFolderName.style.transition = '0.2s';
+    currentFolderName.style.maxWidth = '80vw';
     deleteButton.style.display = "none";
   }
 }
@@ -292,6 +298,9 @@ deleteButton.addEventListener("click", async () => {
     }
   }
 
+  renameButton.style.display = "none";
+  moveButton.style.display = "none";
+  acceptMoveButton.style.display = "none";
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
   navigationStack = [fileStructure, ...navigationStack.slice(1)];
@@ -300,11 +309,10 @@ deleteButton.addEventListener("click", async () => {
 async function displayFiles(folder) {
   const fileList = document.getElementById("file-list");
   fileList.innerHTML = "";
-  const currentFolderName = document.getElementById("currentfolder");
   const userPhoto = document.getElementById("user-photo");
   currentFolderName.textContent = folder.name;
   const backButton = document.getElementById("back-button");
-  currentFiles = files.map((file, index) => ({ file, index }));
+  console.log(files);
   if (navigationStack.length <= 1) {
     backButton.style.display = "none";
     userPhoto.style.display = "block";
@@ -463,37 +471,46 @@ moveButton.addEventListener("click", async () => {
   }
 });
 
-acceptMoveButton.addEventListener("click", async()=> {
+acceptMoveButton.addEventListener("click", async () => {
   for (const file of moveBuffer) {
     try {
       let currentFolderPath = navigationStack
-      .slice(1)
-      .map((folder) => folder.name)
-      .join("/");
+        .slice(1)
+        .map((folder) => folder.name)
+        .join("/");
       const fileId = file.messageId;
       const filename = file.name;
-      //const newName = prompt("Введите новое имя файла");
-      await client.editMessage("me",{message:fileId, text:currentFolderPath.concat('/').concat(filename)});
+      if (currentFolderPath === '') {
+        await client.editMessage("me", { message: fileId, text: currentFolderPath.concat(filename) });
+      } else {
+        await client.editMessage("me", { message: fileId, text: currentFolderPath.concat('/').concat(filename) });
+      }
+      console.log('Файл перемещен');
     } catch (error) {
-      console.error("Ошибка при удалении файла:", error);
+      console.error("Ошибка при перемещении файла:", error);
     }
   }
+  const files = await getFilesFromMeDialog();
+  const fileStructure = buildFileStructure(files);
+  navigationStack = [fileStructure, ...navigationStack.slice(1)];
+  displayFiles(navigationStack[navigationStack.length - 1]);
+  acceptMoveButton.style.display = "none";
   moveBuffer.length = 0;
 });
 const createFolder = document.getElementById("create-folder");
 createFolder.addEventListener("click", async () => {
   let currentFolderPath = navigationStack
-      .slice(1)
-      .map((folder) => folder.name)
-      .join("/");
+    .slice(1)
+    .map((folder) => folder.name)
+    .join("/");
   const createFolderName = prompt("Введите имя папки");
   if (createFolderName === null) {
     return
   }
   if (currentFolderPath === '') {
-    await client.sendMessage("me",{message:"#EmptyFolder ".concat(currentFolderPath).concat(createFolderName).concat("/").concat('NoneFile')});
+    await client.sendMessage("me", { message: "#EmptyFolder ".concat(currentFolderPath).concat(createFolderName).concat("/").concat('NoneFile') });
   } else {
-    await client.sendMessage("me",{message:"#EmptyFolder ".concat(currentFolderPath).concat("/").concat(createFolderName).concat("/").concat('NoneFile')});
+    await client.sendMessage("me", { message: "#EmptyFolder ".concat(currentFolderPath).concat("/").concat(createFolderName).concat("/").concat('NoneFile') });
   }
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
@@ -515,12 +532,12 @@ async function init() {
   const uploadMenuButton = document.getElementById("upload-menu-button");
 
   uploadMenuButton.addEventListener("click", () => {
-    uploadMenu.style.display = "block";
+    uploadMenu.style.transform = 'translate(0px, 0px)'
     uploadMenuButton.style.display = "none";
   });
 
   closeUploadButton.addEventListener("click", () => {
-    uploadMenu.style.display = "none";
+    uploadMenu.style.transform = 'translate(0px, 300px)'
     uploadMenuButton.style.display = "block";
   });
 

@@ -46,11 +46,15 @@ html {
 #currentfolder {
     float: left;
     height: 11vw;
-    max-height: 30px;
+    max-height: 60px;
     color: whitesmoke;
     line-height: min(16vw, 60px);
     font-size: min(30px, 8vw);
     margin-left: 2vw;
+    max-width: 80vw;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .footer-button {
@@ -216,6 +220,8 @@ div#upload-menu {
     border: none;
     padding: 3vw;
     border-radius: 3vw 3vw 0 0;
+    transform: translate(0px, 300px);
+    transition: 0.4s;
     background-color: #3a3a3a;
 }
 
