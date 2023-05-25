@@ -23,7 +23,7 @@ async function init() {
     await client.connect();
     try {
       await client.getMe();
-      window.location.href = "filemanager.html";
+      window.location.href = "photomanager.html";
     } catch (error) {
       localStorage.removeItem("savedSession");
     }

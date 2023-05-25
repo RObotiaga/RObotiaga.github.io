@@ -65792,6 +65792,7 @@ const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff";
 const savedSession = localStorage.getItem("savedSession");
 const stringSession = new StringSession(savedSession || "");
 let files = [];
+let folderContent =[];
 let navigationStack = [];
 const imageCache = new Map();
 const client = new TelegramClient(stringSession, apiId, apiHash, {
@@ -65882,6 +65883,7 @@ function buildFileStructure(files) {
   return root;
 }
 
+const fileList = document.getElementById("file-list");
 const currentFolderName = document.getElementById("currentfolder");
 const fileInput = document.getElementById("file-input");
 const modal = document.getElementById("modal");
@@ -65904,8 +65906,6 @@ async function downloadVideoFile(message) {
       downloadedSize = BigInt(downloaded);
       totalSize = BigInt(fullSize);
       const percentage = Number((downloadedSize * BigInt(100) / totalSize).toString());
-
-      console.log(downloadedSize.toString(), totalSize.toString(), percentage);
       progressBar.value = percentage;
     }
   });
@@ -66022,7 +66022,7 @@ renameButton.addEventListener("click", async () => {
 
 
     const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
-    selectedFiles.push(Object.values(currentFolder.content).flat()[fileIndex]);
+    selectedFiles.push(folderContent[fileIndex]);
   }
   for (const file of selectedFiles) {
     try {
@@ -66067,9 +66067,9 @@ deleteButton.addEventListener("click", async () => {
   for (const checkbox of checkboxes) {
     const listItem = checkbox.closest(".li-tile");
 
-
+    
     const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
-    selectedFiles.push(Object.values(currentFolder.content).flat()[fileIndex]);
+    selectedFiles.push(folderContent[fileIndex]);
   }
   for (const file of selectedFiles) {
     try {
@@ -66077,7 +66077,7 @@ deleteButton.addEventListener("click", async () => {
       await client.deleteMessages("me", [fileId], {
         revoke: true,
       });
-      console.log("Файл успешно удален:");
+      console.log("Файл успешно удален:", file);
     } catch (error) {
       console.error("Ошибка при удалении файла:", error);
     }
@@ -66092,12 +66092,11 @@ deleteButton.addEventListener("click", async () => {
   displayFiles(navigationStack[navigationStack.length - 1]);
 });
 async function displayFiles(folder) {
-  const fileList = document.getElementById("file-list");
   fileList.innerHTML = "";
+  const currentFolderName = document.getElementById("currentfolder");
   const userPhoto = document.getElementById("user-photo");
   currentFolderName.textContent = folder.name;
   const backButton = document.getElementById("back-button");
-  console.log(files);
   if (navigationStack.length <= 1) {
     backButton.style.display = "none";
     userPhoto.style.display = "block";
@@ -66110,63 +66109,71 @@ async function displayFiles(folder) {
     };
   }
   const lazyLoadPromises = [];
+  let elementIndex = 0;
+  // Separate folders and files
+  const folders = [];
+  const files = [];
+  
   for (const itemName in folder.content) {
     const items = folder.content[itemName];
-    if (Array.isArray(items)) {
+    if (items.type === "folder") {
+      folders.push(items);
+    } else if (Array.isArray(items)) {
       for (const item of items) {
-        if (item.name.endsWith('NoneFile')) {
+        if (item.name.endsWith("NoneFile")) {
           continue;
         }
-        const listItem = document.createElement("li");
-        listItem.className = "li-tile";
-        const divElement = document.createElement("div");
-        const checkbox = document.createElement("input");
-        const filename = document.createElement("div");
-        checkbox.type = "checkbox";
-        checkbox.className = "file-checkbox";
-        /*if (Array.isArray(item.file)) {
-          thumbnailUrl = await downloadThumbForVideo(item);
-        }
-        divElement.style.backgroundImage = `url(${thumbnailUrl})`;*/
-        divElement.className = "image-tile";
-        listItem.appendChild(divElement);
-        divElement.addEventListener("click", () => openModal(item));
-
-        filename.textContent = item.name || "Noname";
-        filename.className = "file-name";
-        listItem.appendChild(filename);
-
-        checkbox.addEventListener("change", async () => {
-          await updateDeleteButtonVisibility();
-          await updateMoveButtonVisibility();
-          await updateRenameButtonVisibility();
-        });
-        listItem.appendChild(checkbox);
-
-        fileList.appendChild(listItem);
-
-
-        lazyLoadPromises.push(lazyLoadImage(divElement, item));
+        files.push(item);
       }
-    } else if (items.type === "folder") {
-      if (Object.keys(items.content).length === 1 && Object.keys(items.content)[0] === "NoneFile") {
-        console.log("Папка пустая");
-      }
-      const listItem = document.createElement("li");
-      listItem.className = "li-tile";
-      const divElement = document.createElement("div");
-      const folderTile = document.createElement("div");
-      folderTile.className = "folder";
-      divElement.textContent = items.name;
-      divElement.className = "file-name";
-      listItem.appendChild(folderTile);
-      listItem.appendChild(divElement);
-      listItem.onclick = () => {
-        navigationStack.push(items);
-        displayFiles(items);
-      };
-      fileList.appendChild(listItem);
     }
+  }
+
+  // Append folders
+  for (const folderItem of folders) {
+    const listItem = document.createElement("li");
+    listItem.className = "li-tile";
+    const divElement = document.createElement("div");
+    const folderTile = document.createElement("div");
+    folderTile.className = "folder";
+    divElement.textContent = folderItem.name;
+    divElement.className = "file-name";
+    listItem.appendChild(folderTile);
+    listItem.appendChild(divElement);
+    listItem.onclick = () => {
+      navigationStack.push(folderItem);
+      displayFiles(folderItem);
+    };
+    folderContent.push(folderItem);
+    fileList.appendChild(listItem);
+  }
+
+  // Append files
+  for (const fileItem of files) {
+    const listItem = document.createElement("li");
+    listItem.className = "li-tile";
+    const divElement = document.createElement("div");
+    const checkbox = document.createElement("input");
+    const filename = document.createElement("div");
+    checkbox.type = "checkbox";
+    checkbox.className = "file-checkbox";
+    divElement.className = "image-tile";
+    listItem.appendChild(divElement);
+    divElement.addEventListener("click", () => openModal(fileItem));
+
+    filename.textContent = fileItem.name || "Noname";
+    filename.className = "file-name";
+    listItem.appendChild(filename);
+
+    checkbox.addEventListener("change", async () => {
+      await updateDeleteButtonVisibility();
+      await updateMoveButtonVisibility();
+      await updateRenameButtonVisibility();
+    });
+    listItem.appendChild(checkbox);
+
+    fileList.appendChild(listItem);
+    folderContent.push(fileItem);
+    lazyLoadPromises.push(lazyLoadImage(divElement, fileItem));
   }
 
 
@@ -66252,7 +66259,7 @@ moveButton.addEventListener("click", async () => {
     renameButton.style.display = "none";
     acceptMoveButton.style.display = "block";
     const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
-    moveBuffer.push(Object.values(currentFolder.content).flat()[fileIndex]);
+    selectedFiles.push(folderContent[fileIndex]);
   }
 });
 
@@ -66318,12 +66325,12 @@ async function init() {
 
   uploadMenuButton.addEventListener("click", () => {
     uploadMenu.style.transform = 'translate(0px, 0px)'
-    uploadMenuButton.style.display = "none";
+    uploadMenuButton.style.transform = 'translate(0px, 300px)'
   });
 
   closeUploadButton.addEventListener("click", () => {
-    uploadMenu.style.transform = 'translate(0px, 300px)'
-    uploadMenuButton.style.display = "block";
+    uploadMenu.style.transform = 'translate(0px, 500px)'
+    uploadMenuButton.style.transform = 'translate(0px, 0px)'
   });
 
   uploadButton.addEventListener("click", () => {

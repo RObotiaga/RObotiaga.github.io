@@ -203,6 +203,7 @@ img.footerbuttonsvg {
     bottom: min(70px, 17vw);
     border: none;
     border-radius: 50%;
+    transition: 0.5s;
     background-color: rgb(135, 116, 225);
 }
 
@@ -220,7 +221,7 @@ div#upload-menu {
     border: none;
     padding: 3vw;
     border-radius: 3vw 3vw 0 0;
-    transform: translate(0px, 300px);
+    transform: translate(0px, 500px);
     transition: 0.4s;
     background-color: #3a3a3a;
 }

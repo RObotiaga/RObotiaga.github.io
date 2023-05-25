@@ -21,7 +21,6 @@ async function getFilesFromMeDialog() {
           return true;
         } else if (message.media instanceof Api.MessageMediaDocument) {
           const document = message.media.document;
-          console.log(document);
           return document.mime_type && document.mime_type.startsWith("video/");
         }
       }
@@ -42,7 +41,7 @@ async function getFilesFromMeDialog() {
 
 const modal = document.getElementById("modal");
 const modalImage = document.getElementById("modal-image");
-const closeBtn = document.getElementById("close");
+const closeBtn = document.querySelector(".close");
 const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
 
@@ -55,7 +54,6 @@ async function loadImage(file) {
     const videoElement = document.createElement("video");
     videoElement.src = videoUrl;
     videoElement.controls = true;
-    console.log(videoUrl);
     const videoContainer = document.getElementById("video-container");
     videoContainer.innerHTML = "";
     videoContainer.appendChild(videoElement);
