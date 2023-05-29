@@ -6,7 +6,6 @@ const apiId = 26855747;
 const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff";
 const savedSession = localStorage.getItem("savedSession");
 const stringSession = new StringSession(savedSession || "");
-let files = [];
 let folderContent =[];
 let navigationStack = [];
 const imageCache = new Map();
@@ -163,20 +162,8 @@ function closeModalV() {
   modalv.style.display = "none";
 }
 
-function showPrevImage() {
-  currentImageIndex = (currentImageIndex - 1 + files.length) % files.length;
-  modalImage.src = files[currentImageIndex].src;
-}
-
-function showNextImage() {
-  currentImageIndex = (currentImageIndex + 1) % files.length;
-  modalImage.src = files[currentImageIndex].src;
-}
-
 closeBtn.addEventListener("click", closeModal);
 closevBtn.addEventListener("click", closeModalV);
-prevBtn.addEventListener("click", showPrevImage);
-nextBtn.addEventListener("click", showNextImage);
 
 async function lazyLoadImage(imageDivElement, item) {
   let fileId;
@@ -227,22 +214,23 @@ function updateRenameButtonVisibility() {
 renameButton.addEventListener("click", async () => {
   const checkboxes = document.querySelectorAll(".file-checkbox:checked");
   const selectedFiles = [];
-  const currentFolder = navigationStack[navigationStack.length - 1];
   let currentFolderPath = navigationStack
     .slice(1)
     .map((folder) => folder.name)
     .join("/");
   for (const checkbox of checkboxes) {
     const listItem = checkbox.closest(".li-tile");
-
-
     const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
     selectedFiles.push(folderContent[fileIndex]);
   }
   for (const file of selectedFiles) {
     try {
       const fileId = file.messageId;
+      console.log(file);
       const newName = prompt("Введите новое имя файла");
+      if (newName === null) {
+        return
+      }
       if (currentFolderPath === '') {
         await client.editMessage("me", { message: fileId, text: currentFolderPath.concat(newName) });
       } else {
@@ -281,8 +269,6 @@ deleteButton.addEventListener("click", async () => {
   const currentFolder = navigationStack[navigationStack.length - 1];
   for (const checkbox of checkboxes) {
     const listItem = checkbox.closest(".li-tile");
-
-    
     const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
     selectedFiles.push(folderContent[fileIndex]);
   }
@@ -307,6 +293,7 @@ deleteButton.addEventListener("click", async () => {
   displayFiles(navigationStack[navigationStack.length - 1]);
 });
 async function displayFiles(folder) {
+  folderContent = [];
   fileList.innerHTML = "";
   const currentFolderName = document.getElementById("currentfolder");
   const userPhoto = document.getElementById("user-photo");
@@ -417,29 +404,32 @@ async function refreshFilesAndFolders() {
   navigationStack = [fileStructure, ...navigationStack.slice(1, -1), currentFolder];
   displayFiles(currentFolder);
 }
-async function uploadFile() {
+async function uploadFile(files) {
   const currentFolderPath = navigationStack
     .slice(1)
     .map((folder) => folder.name)
     .join("/");
-  const caption = currentFolderPath + "/" + fileInput.files[0].name;
 
-  try {
-    const file = fileInput.files[0];
-    const arrayBuffer = await file.arrayBuffer();
-    const toUpload = new CustomFile(file.name, file.size, "", arrayBuffer);
+  for (const file of files) {
+    const caption = currentFolderPath + "/" + file.name;
 
-    const result = await client.sendFile("me", {
-      file: toUpload,
-      caption: caption,
-      workers: 1,
-    });
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const toUpload = new CustomFile(file.name, file.size, "", arrayBuffer);
 
-    console.log("Файл успешно загружен:", result);
-    refreshFilesAndFolders();
-  } catch (error) {
-    console.error("Ошибка при загрузке файла:", error);
+      const result = await client.sendFile("me", {
+        file: toUpload,
+        caption: caption,
+        workers: 1,
+      });
+
+      console.log("Файл успешно загружен:", result);
+    } catch (error) {
+      console.error("Ошибка при загрузке файла:", error);
+    }
   }
+
+  refreshFilesAndFolders();
 }
 async function setUserProfilePhotoAsBackground() {
   const buffer = await client.downloadProfilePhoto('me')
@@ -554,7 +544,7 @@ async function init() {
 
   fileInput.addEventListener("change", async (event) => {
     if (event.target.files.length > 0) {
-      const file = event.target.files[0];
+      const file = event.target.files;
       await uploadFile(file);
       const files = await getFilesFromMeDialog();
       const fileStructure = buildFileStructure(files);

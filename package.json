@@ -1,31 +1,21 @@
 {
-    "version": "1.0.0",
-    "name": "TeleDisk",
-    "app-name": "TeleDisk",
-    "package-name": "webview",
-    "project-type": "webview",
-    "icon": "./assets/icon/icon.png",
-    "dist-path": "./dist",
-    "permission": [
-        "android.permission.INTERNET",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_EXTERNAL_STORAGE"
-    ],
-    "description": "",
-    "main": "./views/bundle.js",
-    "scripts": {
-        "start:dev": "node .",
-        "build": "androidjs build"
-    },
-    "author": "",
-    "license": "ISC",
-    "dependencies": {
-        "androidjs": "^2.0.2",
-        "input": "^1.0.1",
-        "telegram": "^2.15.15"
-    },
-    "project-name": "TeleDisk",
-    "theme": {
-        "fullScreen": true
-    }
+  "name": "robotiaga.github.io",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.34.3",
+    "playwright-test": "^9.1.0",
+    "telegram": "^2.17.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.34.3"
+  }
 }
