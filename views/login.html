@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>TeleDisk</title>
         <link rel="stylesheet" href="css/login.css">
+        
     </head>
     <body>
         <div class="noSelect">
@@ -22,19 +23,23 @@
 
                     <span id="codeTextContainer" style="display: none;">
                       <p class="queueText">Wait code...</p>
-                      <input id="login_code" name="code" class="form__input" placeholder="Code" required>
+                      <input type="password" id="login_code" name="code" class="form__input" placeholder="Code" required>
                       <button id="code_button" class="button_b" type="button" >Log In</button>
                     </span>
-                    
-                    
+                    <span id="qrCodeContainer" style="display: none;">
+                      <p class="queueText">Scan QR-code</p>
+                      <img id="qrcode">
+                    </span>
+                    <button id="login_with_qr" class="button_b" type="button" >login with QR</button>
 
                   </div>
                 </form>                
             </div>
-            <p id="buildVersion" class="note">Version 0.0.1 (Release ARM)</p>
-            <p id="buildDate" class="note">Apr 14 2023</p>
+            <p id="buildVersion" class="note">Version 0.2.1 (Release Web)</p>
+            <p id="buildDate" class="note">May 29 2023</p>
         </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/js-base64@3.7.2/base64.min.js"></script>
         <script src="./loginbundle.js"></script>
-        
     </body>
 </html>

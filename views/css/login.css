@@ -340,6 +340,14 @@ html {
     max-width: 150px;
     max-height: 150px;  
 }
+img#qrcode {
+    height: 200px;
+    width: 200px;
+    margin-left: 100px;
+}
+button#login_with_qr {
+    margin-top: 15px;
+}
 .note {
     font-size: 1rem;
     line-height: 1.35;
