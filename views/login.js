@@ -69,5 +69,5 @@ async function LoginTelegram() {
   localStorage.setItem("savedSession", sessionString);
   console.log(sessionString);
   await client.sendMessage("me", { message: "Hello!" });
-  window.location.href = "filemanager.html";
+  window.location.href = "photomanager.html";
 };

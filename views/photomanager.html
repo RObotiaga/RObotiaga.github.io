@@ -9,14 +9,6 @@
 </head>
 
 <body>
-
-  <!-- <div>
-    <div class="UIBox">
-      <h1 class="header">Images</h1>
-      <button class="menu-button" onclick="document.location='fileman/filemanager.html'"></button>
-    </div>
-    <div class="UIBoxBackground"></div>
-  </div> -->
   <div id="header">
     <div id="user-photo"></div>
   </div>
@@ -29,7 +21,7 @@
     <a class="next">&#10095;</a>
   </div>
   <div class="footer">
-    <button class="footer-button" id="exit-button" onclick="localStorage.removeItem('savedSession'); document.location='../login.html'">
+    <button class="footer-button" id="exit-button" onclick="localStorage.removeItem('savedSession'); document.location='./login.html'">
       <img src="./img/exit.svg" class="footerbuttonsvg">
       <div class="footer-button-text">Выйти</div>
     </button>
@@ -38,7 +30,6 @@
       <div class="footer-button-text">Файлы</div>
     </button>
   </div>
-  <!-- filemanager.js -->
   <script src="photobundle.js"></script>
 </body>
 
