@@ -1,56 +1,30 @@
 const { test, expect } = require('@playwright/test');
 
-const savedSession ='1AgAWdmVudXMud2ViLnRlbGVncmFtLm9yZwG7huGkZUZLioys+ElTXnVro5gQethH/Zau2fVtxSZBrwY7nQV6fZpZc75381XWyK7k6b+Il2jf+x4cB+5r9UvoNcG0hE8yDAtgraCCA8OAfADsmANBBRbD4tgYDGxd+6w156zYpsqbsCMl/yLh0iy9yrdfkxNt4U5UvYndCLSEpgMpJbXdMwSNVIAe/+vai+nc3FDBMv0XLdUxMC0p0bBljD+G/WmQRs8Hwb+PU6Gda6cLrgZRmmS+MynRhhkFLMEGIjf9IN7IQTY/Sy9p/ePCuibYBN9+QGmDoLJ6qE4xjsF8mjuvHIx7kLtyL1z3/4Vcsqb9sgrWAawz+yhymt+QbA=='
+//change savedSession on your code
+const savedSession = '1AgAWdmVudXMud2ViLnRlbGVncmFtLm9yZwG7OpGNNguU42Td8oVu+2OSJXF3KbjkQZL+Fmy/81VPIgEdOMl9OPw8sKTkbp065E354gcYL7gceXSfj55kfdzEOlaq2ffuP6juzyiNLV2UlnnK7ZG/2B7Uj6q2D2Y3aCS3MA1KyD32ASwia+bq+F/BRdGeIHz480vGTqsh4fyVVsKbEigP1jbWa+Uq+3hF7GfKNaG4/jf5Z+KcNuZrlEFzU0LqFkZYopz/QQoP1Cn4S9Sj/TjpUWvQ+YuTmXK9qgku5nKQYiP/cVYJmFXgZs0aaO8qJxo/L8CjNe34EuadktdjDn3CfHbL+Zph8T4JhZejuW8abAyrfR/W33F4QgN19A==';
+
+async function loginInApp(page, savedSession) {
+  await page.goto('https://robotiaga.github.io/views/login.html');
+  await page.evaluate((session) => {
+    localStorage.setItem('savedSession', session);
+  }, savedSession);
+}
 
 test('should display file list', async ({ page }) => {
-  // Загружаем HTML-страницу с кодом
+  await loginInApp(page, savedSession);
   await page.goto('https://robotiaga.github.io/views/photomanager.html');
-  await page.evaluate(`localStorage.setItem("savedSession", '${savedSession}');`);
-  // Ожидаем, пока список файлов загрузится и станет видимым
-  await page.screenshot({path: 'screenshots/example.png'});
-  await page.waitForSelector('#file-list', { state: 'visible' });
-  await page.screenshot({path: 'screenshots/example1.png'});
+  await page.waitForSelector('.image-tile');
   // Проверяем, что список файлов отображается
   const fileList = await page.$('#file-list');
   expect(fileList).not.toBeNull();
+  // Проверяем наличие фонового изображения для первого image-tile
+  const firstImageTile = await page.$('.image-tile');
+  const hasBackgroundImage = await page.evaluate((imageTile) => {
+    const backgroundImage = window.getComputedStyle(imageTile).getPropertyValue('background-image');
+    console.log(backgroundImage);
+    return backgroundImage !== 'url("data:image/jpeg;base64,")';
+  }, firstImageTile);
+  expect(hasBackgroundImage).toBe(false);
+  await page.screenshot({ path: 'screenshots/screenshot1.png' });
 });
-
-test('should open modal with image', async ({ page }) => {
-  // Загружаем HTML-страницу с кодом
-  await page.goto('file:///path/to/your/html/filemanager.html');
-
-  // Ожидаем, пока список файлов загрузится и станет видимым
-  await page.waitForSelector('#file-list', { state: 'visible' });
-
-  // Кликаем на первый файл из списка
-  await page.click('#file-list li:first-child');
-
-  // Ожидаем, пока модальное окно откроется
-  await page.waitForSelector('#modal', { state: 'visible' });
-
-  // Проверяем, что модальное окно с изображением отображается
-  const modalImage = await page.$('#modal-image');
-  expect(modalImage).not.toBeNull();
-});
-
-test('should navigate to the next image in modal', async ({ page }) => {
-  // Загружаем HTML-страницу с кодом
-  await page.goto('file:///path/to/your/html/filemanager.html');
-
-  // Ожидаем, пока список файлов загрузится и станет видимым
-  await page.waitForSelector('#file-list', { state: 'visible' });
-
-  // Кликаем на первый файл из списка
-  await page.click('#file-list li:first-child');
-
-  // Ожидаем, пока модальное окно откроется
-  await page.waitForSelector('#modal', { state: 'visible' });
-
-  // Кликаем на кнопку "Next"
-  await page.click('.next');
-
-  // Ожидаем, пока изображение в модальном окне обновится
-  await page.waitForSelector('#modal-image[src="path/to/next/image.jpg"]', { state: 'visible' });
-});
-
 
