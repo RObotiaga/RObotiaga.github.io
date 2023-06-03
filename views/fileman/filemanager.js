@@ -226,7 +226,6 @@ renameButton.addEventListener("click", async () => {
   for (const file of selectedFiles) {
     try {
       const fileId = file.messageId;
-      console.log(file);
       const newName = prompt("Введите новое имя файла");
       if (newName === null) {
         return
