@@ -343,7 +343,7 @@ html {
 img#qrcode {
     height: 200px;
     width: 200px;
-    margin-left: 100px;
+    margin-left: min(17.5vw,60px);
 }
 button#login_with_qr {
     margin-top: 15px;

@@ -65826,27 +65826,19 @@ async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
   const messages = await client.getMessages(mePeerId);
 
-  files = messages
-    .filter((message) => {
-      if (message.media) {
-        if (message.media instanceof Api.MessageMediaPhoto) {
-          return true;
-        } else if (message.media instanceof Api.MessageMediaDocument) {
-          const document = message.media.document;
-          return document.mime_type && document.mime_type.startsWith("video/");
-        }
-      }
-      return false;
-    })
+  const photos = messages
+    .filter(
+      (message) =>
+      (message.media instanceof Api.MessageMediaPhoto)
+    )
     .map((message) => {
       if (message.media instanceof Api.MessageMediaPhoto) {
         return message.media.photo;
-      } else if (message.media instanceof Api.MessageMediaDocument) {
-        return message.media.document;
       }
     });
-
+  files = [...photos];
   files.sort((a, b) => b.date - a.date);
+  console.log(files);
   return files;
 }
 
@@ -65892,7 +65884,7 @@ function openModal(index) {
   } else if (files[currentImageIndex] instanceof Api.Photo) {
     modalImage.src = files[currentImageIndex].src;
     modalImage.style.display = "block";
-    videoContainer.style.display = "none";
+    //videoContainer.style.display = "none";
   }
 
   modal.style.display = "block";
