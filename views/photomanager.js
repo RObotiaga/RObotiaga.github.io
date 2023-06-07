@@ -10,6 +10,22 @@ const client = new TelegramClient(stringSession, apiId, apiHash, {
   connectionRetries: 5,
 });
 
+let prevScrollPos = window.pageYOffset;
+const header = document.getElementById("header");
+
+window.addEventListener("scroll", function() {
+  const currentScrollPos = window.pageYOffset;
+
+  if (prevScrollPos > currentScrollPos) {
+    header.classList.remove("hide");
+  } else {
+    header.classList.add("hide");
+  }
+
+  prevScrollPos = currentScrollPos;
+});
+
+
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
   const messages = await client.getMessages(mePeerId);
