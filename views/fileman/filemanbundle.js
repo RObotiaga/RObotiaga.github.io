@@ -65818,12 +65818,29 @@ const apiId = 26855747;
 const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff";
 const savedSession = localStorage.getItem("savedSession");
 const stringSession = new StringSession(savedSession || "");
-let folderContent =[];
+const selectedFiles = [];
+let folderContent = [];
 let navigationStack = [];
 const imageCache = new Map();
 const client = new TelegramClient(stringSession, apiId, apiHash, {
   connectionRetries: 5,
 });
+
+let prevScrollPos = window.pageYOffset;
+const header = document.getElementById("header");
+
+window.addEventListener("scroll", function() {
+  const currentScrollPos = window.pageYOffset;
+
+  if (prevScrollPos > currentScrollPos) {
+    header.classList.remove("hide");
+  } else {
+    header.classList.add("hide");
+  }
+
+  prevScrollPos = currentScrollPos;
+});
+
 
 function cacheImage(fileId, imageUrl) {
   imageCache.set(fileId, imageUrl);
@@ -65920,6 +65937,8 @@ const closeBtn = document.getElementById("close");
 const closevBtn = document.getElementById("closev");
 const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
+const moveButton = document.getElementById("move-button");
+const acceptMoveButton = document.getElementById("accept-move-button");
 
 async function downloadVideoFile(message) {
   const progressBar = document.getElementById('videoProgressBar');
@@ -66038,7 +66057,6 @@ renameButton.addEventListener("click", async () => {
   for (const file of selectedFiles) {
     try {
       const fileId = file.messageId;
-      console.log(file);
       const newName = prompt("Введите новое имя файла");
       if (newName === null) {
         return
@@ -66077,7 +66095,6 @@ function updateDeleteButtonVisibility() {
 const deleteButton = document.getElementById("delete-button");
 deleteButton.addEventListener("click", async () => {
   const checkboxes = document.querySelectorAll(".file-checkbox:checked");
-  const selectedFiles = [];
   const currentFolder = navigationStack[navigationStack.length - 1];
   for (const checkbox of checkboxes) {
     const listItem = checkbox.closest(".li-tile");
@@ -66104,6 +66121,49 @@ deleteButton.addEventListener("click", async () => {
   navigationStack = [fileStructure, ...navigationStack.slice(1)];
   displayFiles(navigationStack[navigationStack.length - 1]);
 });
+let isMouseDown = false;
+let timer;
+
+// Функция для обработки долгого нажатия
+function handleLongPress(checkbox, listItem) {
+  checkbox.checked = !checkbox.checked;
+
+  if (checkbox.checked) {
+    const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
+    selectedFiles.push(folderContent[fileIndex]);
+  } else {
+    // Удалить из выбранных файлов
+    const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
+    const index = selectedFiles.findIndex(file => file === folderContent[fileIndex]);
+    if (index !== -1) {
+      selectedFiles.splice(index, 1);
+    }
+  }
+
+  // Обновить видимость кнопок
+  updateDeleteButtonVisibility();
+  updateMoveButtonVisibility();
+  updateRenameButtonVisibility();
+}
+
+// Обработчик события нажатия кнопки мыши или касания на мобильном устройстве
+function handleStartEvent(checkbox, listItem) {
+  isMouseDown = true;
+
+  // Запустить таймер через 0.7 секунды
+  timer = setTimeout(() => {
+    handleLongPress(checkbox, listItem);
+  }, 700);
+}
+
+// Обработчик события отпускания кнопки мыши или окончания касания на мобильном устройстве
+function handleEndEvent() {
+  isMouseDown = false;
+
+  // Очистить таймер
+  clearTimeout(timer);
+}
+
 async function displayFiles(folder) {
   folderContent = [];
   fileList.innerHTML = "";
@@ -66127,7 +66187,7 @@ async function displayFiles(folder) {
   // Separate folders and files
   const folders = [];
   const files = [];
-  
+
   for (const itemName in folder.content) {
     const items = folder.content[itemName];
     if (items.type === "folder") {
@@ -66156,6 +66216,9 @@ async function displayFiles(folder) {
     listItem.onclick = () => {
       navigationStack.push(folderItem);
       displayFiles(folderItem);
+      moveButton.style.display = "none";
+      acceptMoveButton.style.display = "none";
+      renameButton.style.display = "none";
     };
     folderContent.push(folderItem);
     fileList.appendChild(listItem);
@@ -66184,6 +66247,12 @@ async function displayFiles(folder) {
       await updateRenameButtonVisibility();
     });
     listItem.appendChild(checkbox);
+
+    // Добавьте обработчики событий mousedown и mouseup к элементу списка
+    listItem.addEventListener("mousedown", () => handleStartEvent(checkbox, listItem));
+    listItem.addEventListener("mouseup", handleEndEvent);
+    listItem.addEventListener("touchstart", () => handleStartEvent(checkbox, listItem));
+    listItem.addEventListener("touchend", handleEndEvent);
 
     fileList.appendChild(listItem);
     folderContent.push(fileItem);
@@ -66255,8 +66324,6 @@ async function setUserProfilePhotoAsBackground() {
     userPhotoElement.style.backgroundImage = `url(https://comhub.ru/wp-content/uploads/2018/09/dog1.png)`;
   }
 }
-const moveButton = document.getElementById("move-button");
-const acceptMoveButton = document.getElementById("accept-move-button");
 const moveBuffer = [];
 function updateMoveButtonVisibility() {
   const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
