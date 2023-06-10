@@ -16,6 +16,7 @@ const client = new TelegramClient(stringSession, apiId, apiHash, {
 
 let prevScrollPos = window.pageYOffset;
 const header = document.getElementById("header");
+let me;
 
 window.addEventListener("scroll", function() {
   const currentScrollPos = window.pageYOffset;
@@ -41,10 +42,16 @@ function getCachedImage(fileId) {
 function isImageCached(fileId) {
   return imageCache.has(fileId);
 }
+
+async function setName(){
+  me = await client.getMe();
+  const userName = document.getElementById('user-name');
+  userName.textContent = `${me.firstName}`;
+}
+
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
   const messages = await client.getMessages(mePeerId);
-
   const photos = messages
     .filter(
       (message) =>
@@ -114,6 +121,7 @@ function buildFileStructure(files) {
   return root;
 }
 
+const userPhoto = document.getElementById("user-photo");
 const fileList = document.getElementById("file-list");
 const currentFolderName = document.getElementById("currentfolder");
 const fileInput = document.getElementById("file-input");
@@ -127,6 +135,40 @@ const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
 const moveButton = document.getElementById("move-button");
 const acceptMoveButton = document.getElementById("accept-move-button");
+const sideBar = document.getElementById('side-bar');
+const blackScreen = document.getElementById('black-screen');
+const userChoose = document.getElementById('user-choose');
+const userList = document.getElementById('user_list');
+
+let sideBarOpen = false;
+userPhoto.addEventListener("click", async () => {
+  sideBarOpen = true;
+  blackScreen.style.visibility = 'visible';
+  blackScreen.style.background = 'rgb(0 0 0 / 30%)';
+  sideBar.style.left = '0';
+});
+
+let userListOpen = false;
+userChoose.addEventListener("click", async () => {
+  if (userListOpen === false) {
+    userChoose.style.transform = 'rotate(180deg)';
+    userList.style.height = '8vw';
+    userListOpen = true;
+  } else {
+    userChoose.style.transform = 'rotate(0deg)';
+    userList.style.height = '0vw';
+    userListOpen = false;
+  }
+});
+
+document.addEventListener("click", (event) => {
+  if (sideBarOpen && !sideBar.contains(event.target) && event.target !== userPhoto) {
+    sideBarOpen = false;
+    blackScreen.style.visibility = 'hidden';
+    blackScreen.style.background = 'none';
+    sideBar.style.left = '-65vw';
+  }
+});
 
 async function downloadVideoFile(message) {
   const progressBar = document.getElementById('videoProgressBar');
@@ -208,6 +250,7 @@ async function lazyLoadImage(imageDivElement, item) {
           fullImageUrl = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
           cacheImage(fileId, fullImageUrl);
         }
+        imageDivElement.style.backgroundColor = 'none';
         imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
         item.file.src = fullImageUrl;
       } catch (error) {
@@ -319,6 +362,7 @@ function handleLongPress(checkbox, listItem) {
   if (checkbox.checked) {
     const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
     selectedFiles.push(folderContent[fileIndex]);
+    listItem.classList.add("selected");
   } else {
     // Удалить из выбранных файлов
     const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
@@ -326,6 +370,7 @@ function handleLongPress(checkbox, listItem) {
     if (index !== -1) {
       selectedFiles.splice(index, 1);
     }
+    listItem.classList.remove("selected");
   }
 
   // Обновить видимость кнопок
@@ -356,7 +401,6 @@ async function displayFiles(folder) {
   folderContent = [];
   fileList.innerHTML = "";
   const currentFolderName = document.getElementById("currentfolder");
-  const userPhoto = document.getElementById("user-photo");
   currentFolderName.textContent = folder.name;
   const backButton = document.getElementById("back-button");
   if (navigationStack.length <= 1) {
@@ -506,10 +550,12 @@ async function setUserProfilePhotoAsBackground() {
   const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
   const fullImageUrl = "data:image/jpeg;base64," + base64;
 
-  const userPhotoElement = document.getElementById("user-photo");
-  userPhotoElement.style.backgroundImage = `url(${fullImageUrl})`;
-  if (fullImageUrl == 'data:image/jpeg;base64,') {
-    userPhotoElement.style.backgroundImage = `url(https://comhub.ru/wp-content/uploads/2018/09/dog1.png)`;
+  const userPhotoElement = document.querySelectorAll(".user-photo");
+  for (const userphoto of userPhotoElement) {
+    userphoto.style.backgroundImage = `url(${fullImageUrl})`;
+    if (fullImageUrl == 'data:image/jpeg;base64,') {
+      userphoto.style.backgroundImage = `url(https://comhub.ru/wp-content/uploads/2018/09/dog1.png)`;
+    }
   }
 }
 const moveBuffer = [];
@@ -594,7 +640,7 @@ async function init() {
   const closeUploadButton = document.getElementById("close-upload-menu");
   const uploadMenu = document.getElementById("upload-menu");
   const uploadMenuButton = document.getElementById("upload-menu-button");
-
+  setName();
   uploadMenuButton.addEventListener("click", () => {
     uploadMenu.style.transform = 'translate(0px, 0px)'
     uploadMenuButton.style.transform = 'translate(0px, 300px)'

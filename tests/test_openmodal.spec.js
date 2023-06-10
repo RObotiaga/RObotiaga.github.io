@@ -38,3 +38,7 @@ test('open modal', async ({ page }) => {
   const isModalVisible = await modal.isVisible();
   expect(isModalVisible).toBe(true);
 });
+
+// test('close modal', async ({ page }) => {
+
+// });
