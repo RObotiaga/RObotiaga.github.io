@@ -13,13 +13,17 @@
     <input type="file" id="file-input" multiple style="display: none;">
     <button id="upload-menu-button">
       <svg class="ufo-icon__icon" width="24" height="24" role="none" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M13 11V3.5c0-.276-.214-.5-.505-.5h-.99a.507.507 0 0 0-.505.5V11H3.5c-.276 0-.5.214-.5.505v.99c0 .279.23.505.5.505H11v7.5c0 .276.214.5.505.5h.99c.279 0 .505-.23.505-.5V13h7.5c.276 0 .5-.214.5-.505v-.99a.507.507 0 0 0-.5-.505H13z"></path>
+        <path fill="currentColor"
+          d="M13 11V3.5c0-.276-.214-.5-.505-.5h-.99a.507.507 0 0 0-.505.5V11H3.5c-.276 0-.5.214-.5.505v.99c0 .279.23.505.5.505H11v7.5c0 .276.214.5.505.5h.99c.279 0 .505-.23.505-.5V13h7.5c.276 0 .5-.214.5-.505v-.99a.507.507 0 0 0-.5-.505H13z">
+        </path>
       </svg>
     </button>
     <div id="upload-menu">
       <div id="close-upload-menu">
         <svg class="ufo-icon__icon" width="24" height="24" role="none" viewBox="0 0 24 24">
-          <path fill="currentColor" d="M13 11V3.5c0-.276-.214-.5-.505-.5h-.99a.507.507 0 0 0-.505.5V11H3.5c-.276 0-.5.214-.5.505v.99c0 .279.23.505.5.505H11v7.5c0 .276.214.5.505.5h.99c.279 0 .505-.23.505-.5V13h7.5c.276 0 .5-.214.5-.505v-.99a.507.507 0 0 0-.5-.505H13z"></path>
+          <path fill="currentColor"
+            d="M13 11V3.5c0-.276-.214-.5-.505-.5h-.99a.507.507 0 0 0-.505.5V11H3.5c-.276 0-.5.214-.5.505v.99c0 .279.23.505.5.505H11v7.5c0 .276.214.5.505.5h.99c.279 0 .505-.23.505-.5V13h7.5c.276 0 .5-.214.5-.505v-.99a.507.507 0 0 0-.5-.505H13z">
+          </path>
         </svg>
       </div>
       <div id="upload-button" class="upload-menu-buttons">
@@ -58,14 +62,20 @@
         <path fill="currentColor" d="M16 7H3.8l5.6-5.6L8 0 0 8l8 8 1.4-1.4L3.8 9H16z"></path>
       </svg>
     </button>
-    <button class="footer-button" id="delete-button" style="display: none;">
-      <svg width="24" height="24" viewBox="0 0 24 24">
-        <path fill="#fff" d="M7.5 22h9c0.828 0 1.5-0.672 1.5-1.5v-12c0-0.828-0.672-1.5-1.5-1.5h-9c-0.828 0-1.5 0.672-1.5 1.5v12c0 0.828 0.672 1.5 1.5 1.5zm-3-16.5c0-0.828 0.672-1.5 1.5-1.5h12c0.828 0 1.5 0.672 1.5 1.5v3h-15v-3zm12.5 5.5h-11c-0.276 0-0.5-0.224-0.5-0.5s0.224-0.5 0.5-0.5h11c0.276 0 0.5 0.224 0.5 0.5s-0.224 0.5-0.5 0.5zm-2.5 4c-0.276 0-0.5-0.224-0.5-0.5v-5c0-0.276 0.224-0.5 0.5-0.5s0.5 0.224 0.5 0.5v5c0 0.276-0.224 0.5-0.5 0.5z"/>
-      </svg>
-    </button>
-    <button id="move-button" class="footer-button" style="display: none;">Move</button>
-    <button id="accept-move-button" class="footer-button" style="display: none;">Place there</button>
-    <button id="rename-button" class="footer-button" style="display: none;">Rename</button>
+    <div id="open-buttons-menu"></div>
+    <div id="select-buttons">
+      <button id="move-button" class="footer-button">Move</button>
+      <button id="copy-button" class="footer-button">Copy</button>
+      <button id="accept-move-button" class="footer-button">Place there</button>
+      <button id="accept-copy-button" class="footer-button">Place there</button>
+      <button id="rename-button" class="footer-button">Rename</button>
+      <button class="footer-button" id="delete-button">
+        <svg width="24" height="24" viewBox="0 0 24 24">
+          <path fill="#fff"
+            d="M7.5 22h9c0.828 0 1.5-0.672 1.5-1.5v-12c0-0.828-0.672-1.5-1.5-1.5h-9c-0.828 0-1.5 0.672-1.5 1.5v12c0 0.828 0.672 1.5 1.5 1.5zm-3-16.5c0-0.828 0.672-1.5 1.5-1.5h12c0.828 0 1.5 0.672 1.5 1.5v3h-15v-3zm12.5 5.5h-11c-0.276 0-0.5-0.224-0.5-0.5s0.224-0.5 0.5-0.5h11c0.276 0 0.5 0.224 0.5 0.5s-0.224 0.5-0.5 0.5zm-2.5 4c-0.276 0-0.5-0.224-0.5-0.5v-5c0-0.276 0.224-0.5 0.5-0.5s0.5 0.224 0.5 0.5v5c0 0.276-0.224 0.5-0.5 0.5z" />
+        </svg>
+      </button>
+    </div>
   </div>
   <div id="folder-selection-modal" class="modal">
     <div class="modal-content">
@@ -76,30 +86,32 @@
   </div>
   <div id="file-list" class="tile-container"></div>
   <div class="footer">
-    <button class="footer-button" id="exit-button" onclick="localStorage.removeItem('savedSession'); document.location='../login.html'">
-      <div  class="footer-button-svg-exit"></div>
+    <button class="footer-button" id="exit-button"
+      onclick="localStorage.removeItem('savedSession'); document.location='../login.html'">
+      <div class="footer-button-svg-exit"></div>
       <div class="footer-button-text">Выйти</div>
     </button>
     <button class="footer-button" id="menu-button" onclick="document.location='../photomanager.html'">
-      <div  class="footer-button-svg-photos"></div>
+      <div class="footer-button-svg-photos"></div>
       <div class="footer-button-text">Фото</div>
     </button>
   </div>
   <div id="modal" class="modal">
     <span id="close" class="close"></span>
     <img class="modal-content" id="modal-image">
-    <div id="caption"></div> 
+    <div id="caption"></div>
     <a class="prev">&#10094;</a>
     <a class="next">&#10095;</a>
   </div>
   <div id="modalv" class="modal">
     <span id="closev" class="close"></span>
     <progress id="videoProgressBar" value="0" max="100"></progress>
-
-    <video controls="" autoplay="" name="media" class="modal-content" id="modal-video">
-    <div id="caption"></div> 
-    <a class="prev">&#10094;</a>
-    <a class="next">&#10095;</a>
+    <video controls autoplay name="media" class="modal-content" id="modal-video">
+      <source id="videoSource" type="video/mp4">
+      <div id="caption"></div>
+      <a class="prev">&#10094;</a>
+      <a class="next">&#10095;</a>
+    </video>
   </div>
   <div id="black-screen"></div>
   <script src="filemanbundle.js"></script>

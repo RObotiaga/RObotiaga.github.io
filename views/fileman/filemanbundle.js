@@ -65810,10 +65810,12 @@ function writeFileSync (filename, data, options) {
 
 }).call(this)}).call(this,{"isBuffer":require("C:/Users/APTEMOND/AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'),"/../../node_modules/write-file-atomic/index.js")
 },{"C:/Users/APTEMOND/AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":153,"_process":176,"graceful-fs":250,"imurmurhash":257,"slide":284,"util":217}],398:[function(require,module,exports){
+(function (Buffer){(function (){
 const { Api, TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { CustomFile } = require("telegram/client/uploads");
 const { message } = require("telegram/client");
+const bigInt = require("big-integer");
 const apiId = 26855747;
 const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff";
 const savedSession = localStorage.getItem("savedSession");
@@ -65822,6 +65824,7 @@ const selectedFiles = [];
 let folderContent = [];
 let navigationStack = [];
 const imageCache = new Map();
+
 const client = new TelegramClient(stringSession, apiId, apiHash, {
   connectionRetries: 5,
 });
@@ -65830,7 +65833,17 @@ let prevScrollPos = window.pageYOffset;
 const header = document.getElementById("header");
 let me;
 
-window.addEventListener("scroll", function() {
+function makeVisibleAnimation(element, timeOfAnimation) {
+  element.classList.add("is-visible");
+  element.classList.remove("is-hidden");
+}
+function makeHiddenAnimation(element, timeOfAnimation) {
+  element.classList.add("is-hidden");
+  window.setTimeout(function () {
+    element.classList.remove("is-visible");
+  }, timeOfAnimation);
+}
+window.addEventListener("scroll", function () {
   const currentScrollPos = window.pageYOffset;
 
   if (prevScrollPos > currentScrollPos) {
@@ -65855,7 +65868,7 @@ function isImageCached(fileId) {
   return imageCache.has(fileId);
 }
 
-async function setName(){
+async function setName() {
   me = await client.getMe();
   const userName = document.getElementById('user-name');
   userName.textContent = `${me.firstName}`;
@@ -65947,6 +65960,8 @@ const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
 const moveButton = document.getElementById("move-button");
 const acceptMoveButton = document.getElementById("accept-move-button");
+const copyButton = document.getElementById("copy-button");
+const acceptCopyButton = document.getElementById("accept-copy-button");
 const sideBar = document.getElementById('side-bar');
 const blackScreen = document.getElementById('black-screen');
 const userChoose = document.getElementById('user-choose');
@@ -65982,23 +65997,62 @@ document.addEventListener("click", (event) => {
   }
 });
 
-async function downloadVideoFile(message) {
-  const progressBar = document.getElementById('videoProgressBar');
+async function* streamDownloadedChunks(downloadOptions) {
+  const video = downloadOptions.video;
+  const document = downloadOptions.message.message.media.document;
 
-  let totalSize = BigInt(0);
-  let downloadedSize = BigInt(0);
-
-  const buffer = await client.downloadMedia(message.video, {
-    progressCallback: (downloaded, fullSize) => {
-      downloadedSize = BigInt(downloaded);
-      totalSize = BigInt(fullSize);
-      const percentage = Number((downloadedSize * BigInt(100) / totalSize).toString());
-      progressBar.value = percentage;
-    }
+  const iter = client.iterDownload({
+    file: new Api.InputDocumentFileLocation({
+      id: bigInt(document.id.value),
+      fileReference: Buffer.from(document.fileReference),
+      accessHash: bigInt(document.accessHash.value),
+      thumbSize: ""
+    }),
+    offset: bigInt(0),
+    requestSize: 64 * 1024
   });
+  for await (const chunk of iter) {
+    //console.log(chunk);
+    yield chunk;
+  }
+}
+
+async function downloadVideoFile(message) {
+  const videoElement = document.getElementById('modal-video');
+  const videoSource = document.getElementById('videoSource');
+  const progressBar = document.getElementById('videoProgressBar');
+  progressBar.style.display = "block";
+  let totalSize = BigInt(message.video.size); // Calculate the total size of the video
+  let downloadedSize = BigInt(0);
+  
+  let mediaSource = new MediaSource();
+  videoSource.src = URL.createObjectURL(mediaSource);
+  const chunks = [];
+  for await (const chunk of streamDownloadedChunks({
+    video: message.video,
+    message: message,
+    offset: BigInt(0),
+    limit: 64 * 1024,
+    requestSize:2048*1024
+  })) {
+    downloadedSize += BigInt(chunk.length);
+    const percentage = Number((downloadedSize * BigInt(100) / totalSize).toString());
+    progressBar.value = percentage;
+
+    chunks.push(chunk);
+    // Update the video source with the merged chunks
+    const mergedBuffer = Buffer.concat(chunks);
+    const blobFile = new Blob([mergedBuffer], { type: 'video/mp4' });
+    const videoSrc = URL.createObjectURL(blobFile);
+    //console.log(videoSrc);
+    videoSource.src = videoSrc;
+  }
+
   progressBar.value = 100;
   progressBar.style.display = "none";
-  const blobFile = new Blob([buffer], { type: 'video/mp4' });
+
+  const mergedBuffer = Buffer.concat(chunks);
+  const blobFile = new Blob([mergedBuffer], { type: 'video/mp4' });
   const url = URL.createObjectURL(blobFile);
 
   // Check if the download was completed
@@ -66009,7 +66063,6 @@ async function downloadVideoFile(message) {
   return url;
 }
 
-
 async function openModal(item) {
   if (Array.isArray(item.file)) {
     modalVideo.src = '';
@@ -66018,14 +66071,13 @@ async function openModal(item) {
     const progressBar = document.getElementById('videoProgressBar');
     progressBar.value = 0; // Reset the progress bar
 
-    videoSrc = await downloadVideoFile(item);
+    const videoSrc = await downloadVideoFile(item);
     modalVideo.src = videoSrc;
   } else {
     modalImage.src = item.file.src;
     modal.style.display = "block";
   }
 }
-
 
 function closeModal() {
   modal.style.display = "none";
@@ -66080,9 +66132,9 @@ const renameButton = document.getElementById("rename-button");
 function updateRenameButtonVisibility() {
   const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
   if (selectedCheckboxesCount === 1) {
-    renameButton.style.display = "block";
+    makeVisibleAnimation(renameButton, 500);
   } else {
-    renameButton.style.display = "none";
+    makeHiddenAnimation(renameButton, 500);
   }
 }
 renameButton.addEventListener("click", async () => {
@@ -66113,9 +66165,11 @@ renameButton.addEventListener("click", async () => {
       console.error("Ошибка при переименовании файла:", error);
     }
   }
-  renameButton.style.display = "none";
-  moveButton.style.display = "none";
-  acceptMoveButton.style.display = "none";
+  makeHiddenAnimation(renameButton, 500);
+  makeHiddenAnimation(moveButton, 500);
+  makeHiddenAnimation(copyButton, 500);
+  makeHiddenAnimation(acceptMoveButton, 500);
+  makeHiddenAnimation(acceptCopyButton, 500);
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
   navigationStack = [fileStructure, ...navigationStack.slice(1)];
@@ -66126,12 +66180,11 @@ function updateDeleteButtonVisibility() {
   const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
   if (selectedCheckboxesCount > 0) {
     currentFolderName.style.removeProperty('transition');
-    currentFolderName.style.maxWidth = '22vw';
-    deleteButton.style.display = "block";
+    makeVisibleAnimation(deleteButton, 500);
   } else {
     currentFolderName.style.transition = '0.2s';
-    currentFolderName.style.maxWidth = '80vw';
-    deleteButton.style.display = "none";
+
+    makeHiddenAnimation(deleteButton, 500);
   }
 }
 
@@ -66154,11 +66207,14 @@ deleteButton.addEventListener("click", async () => {
     } catch (error) {
       console.error("Ошибка при удалении файла:", error);
     }
+    selectedFiles.length = 0;
   }
 
-  renameButton.style.display = "none";
-  moveButton.style.display = "none";
-  acceptMoveButton.style.display = "none";
+  makeHiddenAnimation(renameButton, 500);
+  makeHiddenAnimation(moveButton, 500);
+  makeHiddenAnimation(acceptMoveButton, 500);
+  makeHiddenAnimation(copyButton, 500);
+  makeHiddenAnimation(acceptCopyButton, 500);
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
   navigationStack = [fileStructure, ...navigationStack.slice(1)];
@@ -66217,10 +66273,8 @@ async function displayFiles(folder) {
   const backButton = document.getElementById("back-button");
   if (navigationStack.length <= 1) {
     backButton.style.display = "none";
-    userPhoto.style.display = "block";
   } else {
-    backButton.style.display = "block";
-    userPhoto.style.display = "none";
+    backButton.style.display = "flex";
     backButton.onclick = () => {
       navigationStack.pop();
       displayFiles(navigationStack[navigationStack.length - 1]);
@@ -66260,9 +66314,9 @@ async function displayFiles(folder) {
     listItem.onclick = () => {
       navigationStack.push(folderItem);
       displayFiles(folderItem);
-      moveButton.style.display = "none";
-      acceptMoveButton.style.display = "none";
-      renameButton.style.display = "none";
+      makeHiddenAnimation(moveButton, 500);
+      makeHiddenAnimation(copyButton, 500);
+      makeHiddenAnimation(renameButton, 500);
     };
     folderContent.push(folderItem);
     fileList.appendChild(listItem);
@@ -66374,10 +66428,13 @@ const moveBuffer = [];
 function updateMoveButtonVisibility() {
   const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
   if (selectedCheckboxesCount > 0) {
-    moveButton.style.display = "block";
+    makeVisibleAnimation(moveButton, 500);
+    makeVisibleAnimation(copyButton, 500);
   } else {
-    moveButton.style.display = "none";
-    acceptMoveButton.style.display = "none";
+    makeHiddenAnimation(moveButton, 500);
+    makeHiddenAnimation(copyButton, 500);
+    makeHiddenAnimation(acceptMoveButton, 500);
+    makeHiddenAnimation(acceptCopyButton, 500);
   }
 }
 moveButton.addEventListener("click", async () => {
@@ -66385,16 +66442,28 @@ moveButton.addEventListener("click", async () => {
   const currentFolder = navigationStack[navigationStack.length - 1];
   for (const checkbox of checkboxes) {
     const listItem = checkbox.closest(".li-tile");
-    moveButton.style.display = "none";
-    renameButton.style.display = "none";
-    acceptMoveButton.style.display = "block";
-    const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
-    selectedFiles.push(folderContent[fileIndex]);
+    makeHiddenAnimation(moveButton, 500);
+    makeHiddenAnimation(copyButton, 500);
+    makeHiddenAnimation(renameButton, 500);
+    makeVisibleAnimation(acceptMoveButton, 500);
+    console.log(selectedFiles);
+  }
+});
+
+copyButton.addEventListener("click", async () => {
+  const checkboxes = document.querySelectorAll(".file-checkbox:checked");
+  const currentFolder = navigationStack[navigationStack.length - 1];
+  for (const checkbox of checkboxes) {
+    const listItem = checkbox.closest(".li-tile");
+    makeHiddenAnimation(moveButton, 500);
+    makeHiddenAnimation(copyButton, 500);
+    makeHiddenAnimation(renameButton, 500);
+    makeVisibleAnimation(acceptCopyButton, 500);
   }
 });
 
 acceptMoveButton.addEventListener("click", async () => {
-  for (const file of moveBuffer) {
+  for (const file of selectedFiles) {
     try {
       let currentFolderPath = navigationStack
         .slice(1)
@@ -66416,8 +66485,48 @@ acceptMoveButton.addEventListener("click", async () => {
   const fileStructure = buildFileStructure(files);
   navigationStack = [fileStructure, ...navigationStack.slice(1)];
   displayFiles(navigationStack[navigationStack.length - 1]);
-  acceptMoveButton.style.display = "none";
-  moveBuffer.length = 0;
+  makeHiddenAnimation(acceptMoveButton, 500);
+  selectedFiles.length = 0;
+});
+
+acceptCopyButton.addEventListener("click", async () => {
+  for (const file of selectedFiles) {
+    console.log(file);
+    try {
+      let currentFolderPath = navigationStack
+        .slice(1)
+        .map((folder) => folder.name)
+        .join("/");
+      const fileId = file.messageId;
+      const filename = file.name;
+      if (currentFolderPath === '') {
+        console.log(currentFolderPath.concat(filename));
+        //await client.sendMessage("me", { file: file.file, text: currentFolderPath.concat(filename) });
+        const result = await client.sendFile("me", {
+          file: file.file,
+          caption: currentFolderPath.concat(filename),
+          workers: 1,
+        });
+      } else {
+        console.log(currentFolderPath.concat('/').concat(filename));
+        // await client.sendMessage("me", { file: file.file, text: currentFolderPath.concat('/').concat(filename) });
+        const result = await client.sendFile("me", {
+          file: file.file,
+          caption: currentFolderPath.concat('/').concat(filename),
+          workers: 1,
+        });
+      }
+      console.log('Файл скопирован');
+    } catch (error) {
+      console.error("Ошибка при копировании файла:", error);
+    }
+  }
+  const files = await getFilesFromMeDialog();
+  const fileStructure = buildFileStructure(files);
+  navigationStack = [fileStructure, ...navigationStack.slice(1)];
+  displayFiles(navigationStack[navigationStack.length - 1]);
+  makeHiddenAnimation(acceptCopyButton, 500);
+  selectedFiles.length = 0;
 });
 const createFolder = document.getElementById("create-folder");
 createFolder.addEventListener("click", async () => {
@@ -66481,4 +66590,5 @@ async function init() {
 
 
 init(); 
-},{"telegram":346,"telegram/client":308,"telegram/client/uploads":315,"telegram/sessions":366}]},{},[398]);
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"big-integer":226,"buffer":69,"telegram":346,"telegram/client":308,"telegram/client/uploads":315,"telegram/sessions":366}]},{},[398]);

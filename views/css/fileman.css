@@ -36,9 +36,11 @@ html {
     z-index: 13;
     transition: transform 0.3s ease-in-out;
 }
+
 #header.hide {
     transform: translateY(-100%);
 }
+
 #user-photo {
     height: 11vw;
     width: 11vw;
@@ -48,11 +50,13 @@ html {
     float: left;
     margin: min(3vw, 5px);
 }
+
 .user-photo {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
 }
+
 div#user-photo-sb {
     width: 12vw;
     height: 12vw;
@@ -60,10 +64,12 @@ div#user-photo-sb {
     margin-top: 20px;
     margin-left: 20px;
 }
+
 div#side-bar-top-block {
     border-bottom: 1px solid var(--element-light-color);
     padding-bottom: 2vw;
 }
+
 #user-name {
     color: white;
     margin-left: 20px;
@@ -75,45 +81,95 @@ div#side-bar-top-block {
     text-overflow: ellipsis;
     max-width: 50vw;
 }
+
 #currentfolder {
     float: left;
     height: 11vw;
     max-height: 60px;
+    max-width: 60vw;
     color: whitesmoke;
     font-size: min(30px, 8vw);
     margin-left: 2vw;
-    max-width: 80vw;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    margin-top: min(5px,3vw);
+    margin-top: min(5px, 3vw);
 }
+#move-button, #accept-move-button, #rename-button,#delete-button, #copy-button,#accept-copy-button{
+    display: none;
+    opacity: 0;
+}
+.is-visible {
+    display: flex !important;
+    animation: fadeInFromNone 0.5s ease-in-out;
+    animation-fill-mode: forwards;
+}
+.is-hidden {
+    animation: fadeOutFromBlock 0.5s ease-in-out;
+}
+@keyframes fadeInFromNone {
+    0% {
+        opacity: 0;
+    }   
+    100% {
+        transform: translate(0,0px);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOutFromBlock {
+    0% {
+        opacity: 1;
+    }
+    100% {
+        transform: translate(0,min(-17vw,60px));
+        opacity: 0;
+    }
+}
+
 #user-choose {
-    transition: 0.25s;  
+    transition: 0.25s;
     width: 4vw;
     height: 4vw;
     max-height: 40px;
     background-color: var(--theme-color);
     -webkit-mask-image: url(../img/arrow.svg);
     mask-image: url(../img/arrow.svg);
-    -webkit-mask-size: min(6vw,40px);
+    -webkit-mask-size: min(6vw, 40px);
     -webkit-mask-position: center;
     -webkit-mask-repeat: no-repeat;
     margin-top: 10px;
     margin-left: 10px;
-    display:inline-block;
+    display: inline-block;
 }
+
+div#select-buttons {
+    display: flex;
+    padding: min(3vw,10px);
+    position: absolute;
+    margin-top: min(11.5vw,40px);
+    width: 95.2vw;
+    margin-left: min(2.6vw, 20px);
+    justify-content: center;
+    box-sizing: border-box;
+}
+
 .footer-button {
     height: 15vw;
     width: 20vw;
+    max-width: 80px;
     float: right;
     border: none;
     outline: none;
     display: block;
     transition: 0.1s;
-    background-color: var(--element-background);;
+    background-color: var(--element-background);
     color: #999;
     max-height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
 }
 
 .footer-button:hover {
@@ -128,19 +184,22 @@ div#side-bar-top-block {
     bottom: 38px;
     right: -3px;
 }
+
 .selected {
     transform: scale(0.85);
     filter: drop-shadow(0px 0px 7px var(--theme-color));
 }
+
 .footer-button-svg-exit {
     width: 20vw;
+    max-width: 80px;
     height: 8vw;
     margin: 0;
     max-height: 40px;
     background-color: var(--theme-color);
     -webkit-mask-image: url(../img/exit.svg);
     mask-image: url(../img/exit.svg);
-    -webkit-mask-size: min(8vw,40px);
+    -webkit-mask-size: min(8vw, 40px);
     -webkit-mask-position: center;
     -webkit-mask-repeat: no-repeat;
 }
@@ -153,7 +212,7 @@ div#side-bar-top-block {
     background-color: var(--theme-color);
     -webkit-mask-image: url(../img/photos.svg);
     mask-image: url(../img/photos.svg);
-    -webkit-mask-size: min(8vw,40px);
+    -webkit-mask-size: min(8vw, 40px);
     -webkit-mask-position: center;
     -webkit-mask-repeat: no-repeat;
 }
@@ -181,9 +240,11 @@ div#black-screen {
     transition: 0.2s;
     backdrop-filter: blur(5px);
 }
+
 div#side-bar-middle-block {
     border-bottom: 2px solid var(--element-light-color);
 }
+
 .side-bar-button {
     padding-left: 10px;
     color: white;
@@ -191,21 +252,25 @@ div#side-bar-middle-block {
     line-height: 8vw;
     width: 65vw;
 }
+
 div#side-bar-bottom-block {
     bottom: 0px;
     position: absolute;
     color: var(--element-light-color);
     padding: 0px 0px 5px 10px;
 }
+
 .side-bar-button:hover {
     background-color: var(--element-light-color);
 }
+
 div#user_list {
     overflow: hidden;
     height: 0px;
     transition: 0.25s;
     border-bottom: 1px solid var(--element-light-color);
 }
+
 .footer-button-svg-files {
     width: 20vw;
     height: 8vw;
@@ -214,10 +279,11 @@ div#user_list {
     background-color: var(--theme-color);
     -webkit-mask-image: url(../img/folder.svg);
     mask-image: url(../img/folder.svg);
-    -webkit-mask-size: min(8vw,40px);
+    -webkit-mask-size: min(8vw, 40px);
     -webkit-mask-position: center;
     -webkit-mask-repeat: no-repeat;
 }
+
 .folder-tile {
     float: left;
     max-width: 160px;
@@ -302,7 +368,7 @@ div#user_list {
     mask-image: url(../img/folder.svg);
     -webkit-mask-image: url(../img/folder.svg);
     background-color: var(--theme-color);
-    
+
 }
 
 .image-tile {
@@ -356,7 +422,8 @@ div#upload-menu {
     position: fixed;
     bottom: 0;
     width: 100%;
-    background-color: var(--element-background);;
+    background-color: var(--element-background);
+    ;
     z-index: 13;
 }
 
@@ -427,9 +494,9 @@ progress#videoProgressBar {
 
 .upload-menu-text {
     text-align: center;
-    transform: translate(0px, min(19vw,80px));
+    transform: translate(0px, min(19vw, 80px));
     color: whitesmoke;
-    font-size: min(4vw,20px);
+    font-size: min(4vw, 20px);
 }
 
 .UIBoxBackground {
@@ -496,6 +563,7 @@ progress#videoProgressBar {
 
 .footer-button-text {
     width: 20vw;
+    max-width: 80px;
 }
 
 .close:hover,
