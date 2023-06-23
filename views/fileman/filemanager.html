@@ -106,11 +106,12 @@
   <div id="modalv" class="modal">
     <span id="closev" class="close"></span>
     <progress id="videoProgressBar" value="0" max="100"></progress>
-
-    <video controls="" autoplay="" name="media" class="modal-content" id="modal-video">
+    <video controls autoplay name="media" class="modal-content" id="modal-video">
+      <source id="videoSource" type="video/mp4">
       <div id="caption"></div>
       <a class="prev">&#10094;</a>
       <a class="next">&#10095;</a>
+    </video>
   </div>
   <div id="black-screen"></div>
   <script src="filemanbundle.js"></script>

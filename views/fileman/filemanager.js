@@ -2,6 +2,7 @@ const { Api, TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { CustomFile } = require("telegram/client/uploads");
 const { message } = require("telegram/client");
+const bigInt = require("big-integer");
 const apiId = 26855747;
 const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff";
 const savedSession = localStorage.getItem("savedSession");
@@ -183,23 +184,62 @@ document.addEventListener("click", (event) => {
   }
 });
 
-async function downloadVideoFile(message) {
-  const progressBar = document.getElementById('videoProgressBar');
+async function* streamDownloadedChunks(downloadOptions) {
+  const video = downloadOptions.video;
+  const document = downloadOptions.message.message.media.document;
 
-  let totalSize = BigInt(0);
-  let downloadedSize = BigInt(0);
-
-  const buffer = await client.downloadMedia(message.video, {
-    progressCallback: (downloaded, fullSize) => {
-      downloadedSize = BigInt(downloaded);
-      totalSize = BigInt(fullSize);
-      const percentage = Number((downloadedSize * BigInt(100) / totalSize).toString());
-      progressBar.value = percentage;
-    }
+  const iter = client.iterDownload({
+    file: new Api.InputDocumentFileLocation({
+      id: bigInt(document.id.value),
+      fileReference: Buffer.from(document.fileReference),
+      accessHash: bigInt(document.accessHash.value),
+      thumbSize: ""
+    }),
+    offset: bigInt(0),
+    requestSize: 64 * 1024
   });
+  for await (const chunk of iter) {
+    //console.log(chunk);
+    yield chunk;
+  }
+}
+
+async function downloadVideoFile(message) {
+  const videoElement = document.getElementById('modal-video');
+  const videoSource = document.getElementById('videoSource');
+  const progressBar = document.getElementById('videoProgressBar');
+  progressBar.style.display = "block";
+  let totalSize = BigInt(message.video.size); // Calculate the total size of the video
+  let downloadedSize = BigInt(0);
+  
+  let mediaSource = new MediaSource();
+  videoSource.src = URL.createObjectURL(mediaSource);
+  const chunks = [];
+  for await (const chunk of streamDownloadedChunks({
+    video: message.video,
+    message: message,
+    offset: BigInt(0),
+    limit: 64 * 1024,
+    requestSize:2048*1024
+  })) {
+    downloadedSize += BigInt(chunk.length);
+    const percentage = Number((downloadedSize * BigInt(100) / totalSize).toString());
+    progressBar.value = percentage;
+
+    chunks.push(chunk);
+    // Update the video source with the merged chunks
+    const mergedBuffer = Buffer.concat(chunks);
+    const blobFile = new Blob([mergedBuffer], { type: 'video/mp4' });
+    const videoSrc = URL.createObjectURL(blobFile);
+    //console.log(videoSrc);
+    videoSource.src = videoSrc;
+  }
+
   progressBar.value = 100;
   progressBar.style.display = "none";
-  const blobFile = new Blob([buffer], { type: 'video/mp4' });
+
+  const mergedBuffer = Buffer.concat(chunks);
+  const blobFile = new Blob([mergedBuffer], { type: 'video/mp4' });
   const url = URL.createObjectURL(blobFile);
 
   // Check if the download was completed
@@ -210,7 +250,6 @@ async function downloadVideoFile(message) {
   return url;
 }
 
-
 async function openModal(item) {
   if (Array.isArray(item.file)) {
     modalVideo.src = '';
@@ -219,14 +258,13 @@ async function openModal(item) {
     const progressBar = document.getElementById('videoProgressBar');
     progressBar.value = 0; // Reset the progress bar
 
-    videoSrc = await downloadVideoFile(item);
+    const videoSrc = await downloadVideoFile(item);
     modalVideo.src = videoSrc;
   } else {
     modalImage.src = item.file.src;
     modal.style.display = "block";
   }
 }
-
 
 function closeModal() {
   modal.style.display = "none";
@@ -423,7 +461,7 @@ async function displayFiles(folder) {
   if (navigationStack.length <= 1) {
     backButton.style.display = "none";
   } else {
-    backButton.style.display = "block";
+    backButton.style.display = "flex";
     backButton.onclick = () => {
       navigationStack.pop();
       displayFiles(navigationStack[navigationStack.length - 1]);

@@ -100,7 +100,7 @@ div#side-bar-top-block {
     opacity: 0;
 }
 .is-visible {
-    display: block !important;
+    display: flex !important;
     animation: fadeInFromNone 0.5s ease-in-out;
     animation-fill-mode: forwards;
 }
@@ -122,7 +122,7 @@ div#side-bar-top-block {
         opacity: 1;
     }
     100% {
-        transform: translate(0,-17vw);
+        transform: translate(0,min(-17vw,60px));
         opacity: 0;
     }
 }
@@ -145,9 +145,9 @@ div#side-bar-top-block {
 
 div#select-buttons {
     display: flex;
-    padding: 3vw;
+    padding: min(3vw,10px);
     position: absolute;
-    margin-top: 11.5vw;
+    margin-top: min(11.5vw,40px);
     width: 95.2vw;
     margin-left: min(2.6vw, 20px);
     justify-content: center;
@@ -157,15 +157,19 @@ div#select-buttons {
 .footer-button {
     height: 15vw;
     width: 20vw;
+    max-width: 80px;
     float: right;
     border: none;
     outline: none;
     display: block;
     transition: 0.1s;
     background-color: var(--element-background);
-    ;
     color: #999;
     max-height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
 }
 
 .footer-button:hover {
@@ -188,6 +192,7 @@ div#select-buttons {
 
 .footer-button-svg-exit {
     width: 20vw;
+    max-width: 80px;
     height: 8vw;
     margin: 0;
     max-height: 40px;
@@ -558,6 +563,7 @@ progress#videoProgressBar {
 
 .footer-button-text {
     width: 20vw;
+    max-width: 80px;
 }
 
 .close:hover,
