@@ -65868,12 +65868,6 @@ function isImageCached(fileId) {
   return imageCache.has(fileId);
 }
 
-async function setName() {
-  me = await client.getMe();
-  const userName = document.getElementById('user-name');
-  userName.textContent = `${me.firstName}`;
-}
-
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
   const messages = await client.getMessages(mePeerId);
@@ -65966,6 +65960,23 @@ const sideBar = document.getElementById('side-bar');
 const blackScreen = document.getElementById('black-screen');
 const userChoose = document.getElementById('user-choose');
 const userList = document.getElementById('user_list');
+const addUserButton = document.getElementById('add_user_button');
+
+addUserButton.addEventListener("click", async () =>{
+
+  me = await client.getMe();
+
+  var savedSession = localStorage.getItem('savedSession');
+
+  var dictionary = {};
+  dictionary[me.firstName] = savedSession;
+
+  localStorage.setItem('cachedSession', JSON.stringify(dictionary));
+
+  localStorage.removeItem('savedSession');
+
+  document.location = '../login.html';
+});
 
 let sideBarOpen = false;
 userPhoto.addEventListener("click", async () => {
@@ -65977,12 +65988,19 @@ userPhoto.addEventListener("click", async () => {
 
 let userListOpen = false;
 userChoose.addEventListener("click", async () => {
+  var userCount = userList.childElementCount;
+
+  // Рассчитываем высоту в зависимости от количества элементов
+  var minHeight = 50;  // Минимальная высота
+  var vwMultiplier = 8;  // Множитель для ширины окна
+
+  var heightValue = 'min(' + (minHeight * userCount) + 'px,' + (vwMultiplier * userCount) + 'vw)';
   if (userListOpen === false) {
-    userChoose.style.transform = 'rotate(180deg)';
-    userList.style.height = '8vw';
+    userChoose.style.transform = 'scale(-1)';
+    userList.style.height = heightValue;
     userListOpen = true;
   } else {
-    userChoose.style.transform = 'rotate(0deg)';
+    userChoose.style.transform = 'scale(1)';
     userList.style.height = '0vw';
     userListOpen = false;
   }
@@ -66012,7 +66030,6 @@ async function* streamDownloadedChunks(downloadOptions) {
     requestSize: 64 * 1024
   });
   for await (const chunk of iter) {
-    //console.log(chunk);
     yield chunk;
   }
 }
@@ -66044,7 +66061,6 @@ async function downloadVideoFile(message) {
     const mergedBuffer = Buffer.concat(chunks);
     const blobFile = new Blob([mergedBuffer], { type: 'video/mp4' });
     const videoSrc = URL.createObjectURL(blobFile);
-    //console.log(videoSrc);
     videoSource.src = videoSrc;
   }
 
@@ -66446,7 +66462,6 @@ moveButton.addEventListener("click", async () => {
     makeHiddenAnimation(copyButton, 500);
     makeHiddenAnimation(renameButton, 500);
     makeVisibleAnimation(acceptMoveButton, 500);
-    console.log(selectedFiles);
   }
 });
 
@@ -66491,7 +66506,6 @@ acceptMoveButton.addEventListener("click", async () => {
 
 acceptCopyButton.addEventListener("click", async () => {
   for (const file of selectedFiles) {
-    console.log(file);
     try {
       let currentFolderPath = navigationStack
         .slice(1)
@@ -66500,7 +66514,6 @@ acceptCopyButton.addEventListener("click", async () => {
       const fileId = file.messageId;
       const filename = file.name;
       if (currentFolderPath === '') {
-        console.log(currentFolderPath.concat(filename));
         //await client.sendMessage("me", { file: file.file, text: currentFolderPath.concat(filename) });
         const result = await client.sendFile("me", {
           file: file.file,
@@ -66508,7 +66521,6 @@ acceptCopyButton.addEventListener("click", async () => {
           workers: 1,
         });
       } else {
-        console.log(currentFolderPath.concat('/').concat(filename));
         // await client.sendMessage("me", { file: file.file, text: currentFolderPath.concat('/').concat(filename) });
         const result = await client.sendFile("me", {
           file: file.file,
@@ -66561,11 +66573,36 @@ async function init() {
   const closeUploadButton = document.getElementById("close-upload-menu");
   const uploadMenu = document.getElementById("upload-menu");
   const uploadMenuButton = document.getElementById("upload-menu-button");
-  setName();
+
+  me = await client.getMe();
+  me = me.firstName
+  const userName = document.getElementById('user-name');
+  userName.textContent = `${me}`;
+
   uploadMenuButton.addEventListener("click", () => {
     uploadMenu.style.transform = 'translate(0px, 0px)'
     uploadMenuButton.style.transform = 'translate(0px, 300px)'
   });
+
+  var cachedSession = JSON.parse(localStorage.getItem('cachedSession'));
+  for (var key in cachedSession) {
+    var button = document.createElement('div');
+    button.classList.add('side-bar-button', 'choose-user');
+    button.textContent = key;
+    // console.log(key);
+    button.addEventListener('click', function(event) {
+      // console.log(cachedSession[event.target.textContent]);
+      cachedSession[me] = localStorage.getItem('savedSession');
+      localStorage.setItem('savedSession', cachedSession[event.target.textContent]);
+      delete cachedSession[event.target.textContent];
+      console.log(cachedSession);
+      localStorage.setItem('cachedSession', JSON.stringify(cachedSession));
+      location.reload();
+    });
+  
+    // // Добавление кнопки в начало user_list
+    userList.insertBefore(button, addUserButton);
+  }
 
   closeUploadButton.addEventListener("click", () => {
     uploadMenu.style.transform = 'translate(0px, 500px)'

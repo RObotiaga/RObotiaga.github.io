@@ -65814,94 +65814,104 @@ function writeFileSync (filename, data, options) {
 const { Api, TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 
-// Инициализация переменных
-var phoneNumber; // Номер телефона пользователя
-var codeNumber; // Код, введенный пользователем
-var result; // Результат выполнения операции
-const apiId = 26855747; // Идентификатор API вашего приложения Telegram
-const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff"; // Хэш API вашего приложения Telegram
-const savedSession = localStorage.getItem("savedSession"); // Получение сохраненной сессии из локального хранилища
-const stringSession = new StringSession(savedSession || ""); // Создание объекта StringSession
+// Initialize variables
+let phoneNumber; // User's phone number
+let codeNumber; // Code entered by the user
+let result; // Operation result
+const apiId = 26855747; // Telegram application API ID
+const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff"; // Telegram application API hash
+const savedSession = localStorage.getItem("savedSession"); // Retrieve saved session from local storage
+const stringSession = new StringSession(savedSession || ""); // Create StringSession object
+const loginTextContainer = document.getElementById("loginTextContainer");
+const codeTextContainer = document.getElementById("codeTextContainer");
+const qrCodeContainer = document.getElementById("qrCodeContainer");
+const backToSelection = document.querySelectorAll('.back_selection');
+// Get DOM elements
+const loginButton = document.getElementById("login_button");
+loginButton.addEventListener("click", showCodeInput);
+const codeButton = document.getElementById("code_button");
+codeButton.addEventListener("click", loginTelegram);
+const qrCodeButton = document.getElementById("login_with_qr");
+qrCodeButton.addEventListener("click", loginWithQRCode);
 
-// Получение элементов DOM
-var loginButton = document.getElementById('login_button');
-loginButton.addEventListener('click', showCodeInput);
-var codeButton = document.getElementById('code_button');
-codeButton.addEventListener('click', LoginTelegram);
-var qrCodeButton = document.getElementById('login_with_qr');
-qrCodeButton.addEventListener('click', LoginWithQRcode);
 
-// Создание клиента Telegram
+backToSelection.forEach(input => input.addEventListener("click", () => {
+  loginTextContainer.style.display = "flex";
+  qrCodeContainer.style.display = "none";
+  codeTextContainer.style.display = "none";
+}));
+
+// Create Telegram client
 const client = new TelegramClient(stringSession, apiId, apiHash, {
-  connectionRetries: 5, // Количество попыток подключения
+  connectionRetries: 5,
 });
 
-// Асинхронная функция для входа с помощью QR-кода
-async function LoginWithQRcode(){
-  document.getElementById("loginTextContainer").style.display = "none"; // Скрытие контейнера с текстом входа
-  document.getElementById("qrCodeContainer").style.display = "block"; // Отображение контейнера с QR-кодом
+// Asynchronous function for logging in with QR code
+async function loginWithQRCode() {
+  loginTextContainer.style.display = "none";
+  codeTextContainer.style.display = "none";
+  qrCodeContainer.style.display = "flex";
+  await client.connect();
 
-  await client.connect(); // Установка соединения с серверами Telegram
-
-  // Вход с помощью QR-кода
+  // Login with QR code
   const user = await client.signInUserWithQrCode(
-        { apiHash, apiId },
-        {
-            onError: async (p1) => {
-                console.log("error", p1);
-                return true;
-            },
-            qrCode: async ({ token }) => {              
-                const qr = `tg://login?token=${Base64.fromUint8Array(token, true)}`;
-                new QRious({
-                  element: document.getElementById("qrcode"), 
-                  value: qr,
-                  size: 200,
-                  background: '#212121',
-                  foreground: 'white',
-                });
-            },
-        }
-    );
+    { apiHash, apiId },
+    {
+      onError: async (error) => {
+        console.log("Error", error);
+        return true;
+      },
+      qrCode: async ({ token }) => {
+        const qr = `tg://login?token=${Base64.fromUint8Array(token, true)}`;
+        new QRious({
+          element: document.getElementById("qrcode"),
+          value: qr,
+          size: 200,
+          background: "#212121",
+          foreground: "white",
+        });
+      },
+    }
+  );
 
-    const sessionString = client.session.save(); // Сохранение сессии клиента
-    localStorage.setItem("savedSession", sessionString); // Сохранение сессии в локальном хранилище
-    await client.sendMessage("me", { message: "you are logged in TeleDisk!" }); // Отправка сообщения пользователю
-    window.location.href = "photomanager.html"; // Перенаправление на страницу photomanager.html
+  const sessionString = client.session.save();
+  localStorage.setItem("savedSession", sessionString);
+  await client.sendMessage("me", { message: "You are logged in TeleDisk!" });
+  window.location.href = "photomanager.html";
 }
 
-// Асинхронная функция для входа в Telegram
-async function LoginTelegram() {
-  codeNumber = document.getElementById("login_code").value; // Получение введенного пользователем кода
+// Asynchronous function for logging in to Telegram
+async function loginTelegram() {
+  codeNumber = document.getElementById("login_code").value;
   await client.invoke(
     new Api.auth.SignIn({
-      phoneNumber: phoneNumber, // Номер телефона пользователя
-      phoneCodeHash: result.phoneCodeHash, // Хэш кода подтверждения
-      phoneCode: codeNumber, // Код, введенный пользователем
+      phoneNumber: phoneNumber,
+      phoneCodeHash: result.phoneCodeHash,
+      phoneCode: codeNumber,
     })
   );
 
-  const sessionString = client.session.save(); // Сохранение сессии клиента
-  localStorage.setItem("savedSession", sessionString); // Сохранение сессии в локальном хранилище
-  await client.sendMessage("me", { message: "you are logged in TeleDisk!" }); // Отправка сообщения пользователю
-  window.location.href = "photomanager.html"; // Перенаправление на страницу photomanager.html
-};
+  const sessionString = client.session.save();
+  localStorage.setItem("savedSession", sessionString);
+  await client.sendMessage("me", { message: "You are logged in TeleDisk!" });
+  window.location.href = "photomanager.html";
+}
 
-// Асинхронная функция для отображения поля ввода кода
+// Asynchronous function to show code input field
 async function showCodeInput() {
-  document.getElementById("loginTextContainer").style.display = "none"; // Скрытие контейнера с текстом входа
-  document.getElementById("codeTextContainer").style.display = "block"; // Отображение контейнера с полем ввода кода
-  phoneNumber = document.getElementById("login_login").value; // Получение введенного пользователем номера телефона
+  loginTextContainer.style.display = "none";
+  codeTextContainer.style.display = "flex";
+  phoneNumber = document.getElementById("login_login").value;
 
-  await client.connect(); // Установка соединения с серверами Telegram
+  await client.connect();
 
   result = await client.invoke(
     new Api.auth.SendCode({
-      phoneNumber: phoneNumber, // Номер телефона пользователя
-      apiId: apiId, // Идентификатор API вашего приложения Telegram
-      apiHash: apiHash, // Хэш API вашего приложения Telegram
+      phoneNumber: phoneNumber,
+      apiId: apiId,
+      apiHash: apiHash,
       settings: new Api.CodeSettings({
-        allowFlashcall: true, // Разрешение Flash-звонков
+        allowFlashcall: true,
         currentNumber: true,
         allowAppHash: true,
         allowMissedCall: true,
@@ -65910,24 +65920,24 @@ async function showCodeInput() {
     })
   );
 
-  console.log(result.phoneCodeHash); // Вывод хэша кода подтверждения в консоль
-};
+  console.log(result.phoneCodeHash);
+}
 
-// Асинхронная функция инициализации
+// Asynchronous initialization function
 async function init() {
   if (savedSession) {
-    await client.connect(); // Установка соединения с серверами Telegram
+    await client.connect();
 
     try {
-      await client.getMe(); // Получение информации о текущем пользователе
-      window.location.href = "photomanager.html"; // Перенаправление на страницу photomanager.html
+      await client.getMe();
+      window.location.href = "photomanager.html";
     } catch (error) {
-      localStorage.removeItem("savedSession"); // Удаление сохраненной сессии из локального хранилища
+      localStorage.removeItem("savedSession");
     }
   }
 }
 
-init(); // Вызов функции инициализации
+init();
 
 }).call(this)}).call(this,require("buffer").Buffer)
 },{"buffer":69,"telegram":346,"telegram/sessions":366}]},{},[398]);
