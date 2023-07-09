@@ -61,8 +61,9 @@ div#user-photo-sb {
     width: 12vw;
     height: 12vw;
     border-radius: 50%;
-    margin-top: 20px;
+    margin-top: 40px;
     margin-left: 20px;
+    margin-bottom: 10px;
 }
 
 div#side-bar-top-block {
@@ -72,10 +73,8 @@ div#side-bar-top-block {
 
 #user-name {
     color: white;
-    margin-left: 20px;
-    margin-top: 5px;
     font-weight: 540;
-    font-size: 4vw;
+    font-size: min(4vw,30px);
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -129,8 +128,9 @@ div#side-bar-top-block {
 
 #user-choose {
     transition: 0.25s;
-    width: 4vw;
-    height: 4vw;
+    width: 3vw;
+    height: 2vw;
+    margin-left: 10px;
     max-height: 40px;
     background-color: var(--theme-color);
     -webkit-mask-image: url(../img/arrow.svg);
@@ -138,8 +138,6 @@ div#side-bar-top-block {
     -webkit-mask-size: min(6vw, 40px);
     -webkit-mask-position: center;
     -webkit-mask-repeat: no-repeat;
-    margin-top: 10px;
-    margin-left: 10px;
     display: inline-block;
 }
 
@@ -216,7 +214,6 @@ div#select-buttons {
     -webkit-mask-position: center;
     -webkit-mask-repeat: no-repeat;
 }
-
 div#side-bar {
     height: 100vh;
     width: 65vw;
@@ -227,8 +224,8 @@ div#side-bar {
     background-color: var(--element-background);
     z-index: 1000;
     overflow: hidden;
+    max-width: 450px;
 }
-
 div#black-screen {
     width: 100vw;
     height: 100vh;
@@ -249,10 +246,21 @@ div#side-bar-middle-block {
     padding-left: 10px;
     color: white;
     height: 8vw;
-    line-height: 8vw;
+    line-height: min(8vw,50px);
     width: 65vw;
+    max-width: 440px;
+    max-height: 50px;
 }
-
+div#user-choose-menu {
+    max-width: 450px;
+    display: flex;
+    align-content: center;
+    flex-wrap: wrap;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    padding-left: 10px;
+}
 div#side-bar-bottom-block {
     bottom: 0px;
     position: absolute;
