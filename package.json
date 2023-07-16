@@ -1,0 +1,21 @@
+{
+  "name": "robotiaga.github.io",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.34.3",
+    "playwright-test": "^9.1.0",
+    "telegram": "^2.17.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.34.3"
+  }
+}
