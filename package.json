@@ -6,7 +6,9 @@
   "directories": {
     "test": "tests"
   },
-  "scripts": {},
+  "scripts": {
+    "browserify": "browserify views/fileman/filemanagersec.js -o views/fileman/filemanbundle.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

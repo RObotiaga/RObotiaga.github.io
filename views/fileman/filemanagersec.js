@@ -1,17 +1,28 @@
+// Import
 const { Api, TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
+const { CustomFile } = require("telegram/client/uploads");
 const bigInt = require("big-integer");
+
+// TG client init
 
 const apiId = 26855747;
 const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff";
 const savedSession = localStorage.getItem("savedSession");
 const stringSession = new StringSession(savedSession || "");
-const imageCache = new Map();
-const lazyLoadPromises = [];
-
 const client = new TelegramClient(stringSession, apiId, apiHash, {
   connectionRetries: 5,
 });
+
+// global repositories
+
+const imageCache = new Map();
+const fileCache = new Map();
+const lazyLoadPromises = [];
+let navigationStack = [];
+let selectedFiles = [];
+
+// Classes
 
 class File {
   constructor(message, type, file, caption, date, messageId, thumb = null) {
@@ -33,7 +44,15 @@ class File {
       return fileURL;
     }
   }
-
+  async getCachedFile() {
+    if (fileCache.has(this.file.id.toString())) {
+      return fileCache.get(this.file.id.toString());
+    } else {
+      const fileURL = await this.downloadFullFile();
+      fileCache.set(this.file.id.toString(), fileURL);
+      return fileURL;
+    }
+  }
   async downloadPreview() {
     if (this.type === "video") {
       const [, thumb] = this.thumb;
@@ -44,11 +63,11 @@ class File {
       return URL.createObjectURL(new Blob([buffer], { type: "image/png" }));
     }
   }
-
-  async downloadFullFile(progressBar) {
+  async downloadFullFile() {
     if (this.type === "video") {
       let totalSize = bigInt(0);
       let downloadedSize = bigInt(0);
+      const progressBar = document.getElementById("videoProgressBar");
 
       const buffer = await client.downloadMedia(this.file, {
         progressCallback: (downloaded, fullSize) => {
@@ -65,8 +84,46 @@ class File {
       progressBar.style.display = "none";
       return URL.createObjectURL(new Blob([buffer], { type: "video/mp4" }));
     } else if (this.type === "photo") {
-      return this.getCachedImage;
+      return this.getCachedImage();
     }
+  }
+  async rename(newName) {
+    const fileId = this.messageId;
+    if (getPath() === "") {
+      await client.editMessage("me", {
+        message: fileId,
+        text: getPath().concat(newName),
+      });
+    } else {
+      await client.editMessage("me", {
+        message: fileId,
+        text: getPath().concat("/").concat(newName),
+      });
+    }
+  }
+  async copyTo(newPath) {
+    const filename = this.name;
+    if (newPath === "") {
+      const result = await client.sendFile("me", {
+        file: this.file,
+        caption: newPath.concat(filename),
+        workers: 1,
+      });
+    } else {
+      const result = await client.sendFile("me", {
+        file: this.file,
+        caption: newPath.concat("/").concat(filename),
+        workers: 1,
+      });
+    }
+    console.log("Файл скопирован");
+  }
+  async delete() {
+    const fileId = this.messageId;
+    await client.deleteMessages("me", [fileId], {
+      revoke: true,
+    });
+    console.log("Файл успешно удален:", this.message);
   }
 }
 
@@ -86,7 +143,8 @@ class Folder {
   }
 }
 
-const userPhoto = document.getElementById("user-photo");
+// Elements
+
 const fileList = document.getElementById("file-list");
 const currentFolderName = document.getElementById("currentfolder");
 const fileInput = document.getElementById("file-input");
@@ -94,19 +152,18 @@ const modal = document.getElementById("modal");
 const modalv = document.getElementById("modalv");
 const modalImage = document.getElementById("modal-image");
 const modalVideo = document.getElementById("modal-video");
-const closeBtn = document.getElementById("close");
-const closevBtn = document.getElementById("closev");
-const prevBtn = document.querySelector(".prev");
-const nextBtn = document.querySelector(".next");
 const moveButton = document.getElementById("move-button");
 const acceptMoveButton = document.getElementById("accept-move-button");
 const copyButton = document.getElementById("copy-button");
 const acceptCopyButton = document.getElementById("accept-copy-button");
-const sideBar = document.getElementById("side-bar");
-const blackScreen = document.getElementById("black-screen");
-const userChoose = document.getElementById("user-choose");
-const userList = document.getElementById("user_list");
 const addUserButton = document.getElementById("add_user_button");
+const backButton = document.getElementById("back-button");
+const createEmptyFolder = document.getElementById("create-folder");
+const renameButton = document.getElementById("rename-button");
+const deleteButton = document.getElementById("delete-button");
+const userName = document.getElementById("user-name");
+
+// Structural functions
 
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
@@ -146,7 +203,6 @@ async function getFilesFromMeDialog() {
   const files = [...photos, ...videos].sort((a, b) => b.date - a.date);
   return files;
 }
-
 function buildFileStructure(files) {
   const root = new Folder("root");
 
@@ -162,7 +218,6 @@ function buildFileStructure(files) {
       let foundFolder = currentFolder.content.find(
         (item) => item instanceof Folder && item.name === folderName
       );
-
       if (!foundFolder) {
         foundFolder = new Folder(folderName);
         currentFolder.addFolder(foundFolder);
@@ -170,37 +225,21 @@ function buildFileStructure(files) {
 
       currentFolder = foundFolder;
     }
-
-    const fileName = path[path.length - 1];
-    const newFile = new File(
-      file.message,
-      file.type,
-      file.file,
-      file.caption,
-      file.date,
-      file.messageId,
-      file.thumb || ""
-    );
-
-    currentFolder.addFile(newFile);
+    if (file.caption.indexOf("#EmptyFolder")) {
+      const newFile = new File(
+        file.message,
+        file.type,
+        file.file,
+        file.caption,
+        file.date,
+        file.messageId,
+        file.thumb || ""
+      );
+      currentFolder.addFile(newFile);
+    }
   }
 
   return root;
-}
-async function openModal(item) {
-  if (Array.isArray(item.file)) {
-    modalVideo.src = "";
-    modalv.style.display = "block";
-
-    const progressBar = document.getElementById("videoProgressBar");
-    progressBar.value = 0;
-
-    const videoSrc = await downloadVideoFile(item);
-    modalVideo.src = videoSrc;
-  } else {
-    modalImage.src = item.file.src;
-    modal.style.display = "block";
-  }
 }
 async function lazyLoadImage(divElement, item) {
   const observer = new IntersectionObserver(async (entries) => {
@@ -224,14 +263,26 @@ async function createFileElement(item) {
   const filename = document.createElement("div");
   divElement.className = "image-tile";
   listItem.appendChild(divElement);
-  filename.textContent = item.caption || "NoName";
+  filename.textContent = item.name || "NoName";
   filename.className = "file-name";
   listItem.appendChild(filename);
   fileList.appendChild(listItem);
   lazyLoadPromises.push(lazyLoadImage(divElement, item));
-  divElement.addEventListener("click", () => openModal(fileItem));
+  listItem.addEventListener("click", () => openModal(item));
+  onLongPress(listItem, () => {
+    if (listItem.classList.contains("selected")) {
+      listItem.classList.remove("selected");
+      selectedFiles.splice(
+        findIndexByMessageId(selectedFiles, item.message.id),
+        1
+      );
+    } else {
+      listItem.classList.add("selected");
+      selectedFiles.push(item);
+    }
+    updateActionButtonVisibility();
+  });
 }
-
 async function createFolder(folder) {
   const listItem = document.createElement("li");
   listItem.className = "li-tile";
@@ -243,8 +294,350 @@ async function createFolder(folder) {
   listItem.appendChild(folderTile);
   listItem.appendChild(divElement);
   fileList.appendChild(listItem);
+  listItem.addEventListener("click", async () => {
+    navigationStack.push(folder);
+    await displayFilesAndFolders(folder);
+  });
+  onLongPress(listItem, () => {
+    if (listItem.classList.contains("selected")) {
+      listItem.classList.remove("selected");
+      for (const item of getItemsInFolder(folder)) {
+        selectedFiles.splice(
+          findIndexByMessageId(selectedFiles, item.message.id),
+          1
+        );
+      }
+    } else {
+      listItem.classList.add("selected");
+      selectedFiles.push(...getItemsInFolder(folder));
+    }
+    updateActionButtonVisibility();
+  });
 }
+async function openModal(item) {
+  if (item.type == "video") {
+    modalVideo.src = "";
+    modalv.style.display = "block";
+    const fileURL = await item.getCachedFile();
+    modalVideo.src = fileURL;
+  } else {
+    const fileURL = await item.getCachedFile();
+    modalImage.src = fileURL;
+    modal.style.display = "block";
+  }
+}
+
+// Auxiliary functions
+
+async function checkRootFolder() {
+  if (navigationStack.length <= 1) {
+    return true;
+  } else {
+    return false;
+  }
+}
+function compareFilesAndFolders(a, b) {
+  if (a instanceof Folder && !(b instanceof Folder)) {
+    return -1;
+  } else if (!(a instanceof Folder) && b instanceof Folder) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+function getPath() {
+  const currentFolderPath = navigationStack
+    .slice(1)
+    .map((folder) => folder.name)
+    .join("/");
+  return currentFolderPath;
+}
+async function findObjectByName(obj, name) {
+  if (obj.name === name) {
+    return obj;
+  }
+  for (const key in obj) {
+    if (typeof obj[key] === "object") {
+      const result = await findObjectByName(obj[key], name);
+      if (result) {
+        return result;
+      }
+    }
+  }
+
+  return null;
+}
+async function updateFileStructure() {
+  const files = await getFilesFromMeDialog();
+  const fileStructure = buildFileStructure(files);
+  const currentFolder = await findObjectByName(
+    fileStructure,
+    currentFolderName.textContent
+  );
+  await displayFilesAndFolders(currentFolder);
+}
+function onLongPress(element, callback) {
+  let timer;
+
+  element.addEventListener("touchstart", () => {
+    timer = setTimeout(() => {
+      timer = null;
+      callback();
+    }, 600);
+  });
+
+  function cancel() {
+    clearTimeout(timer);
+  }
+
+  element.addEventListener("touchend", cancel);
+  element.addEventListener("touchmove", cancel);
+}
+function findIndexByMessageId(array, findId) {
+  let index = array.findIndex((item) => item.message.id === findId);
+  return index;
+}
+function getItemsInFolder(obj) {
+  const items = [];
+  for (const item of obj.content)
+    if (item instanceof File) {
+      items.push(item);
+    } else {
+      items.push(...getItemsInFolder(item));
+    }
+  return items;
+}
+function updateActionButtonVisibility() {
+  if (selectedFiles.length === 1) {
+    makeVisibleAnimation(renameButton, 500);
+  } else {
+    makeHiddenAnimation(renameButton, 500);
+  }
+  if (selectedFiles.length > 0) {
+    currentFolderName.style.removeProperty("transition");
+    makeVisibleAnimation(deleteButton, 500);
+  } else {
+    currentFolderName.style.transition = "0.2s";
+    makeHiddenAnimation(deleteButton, 500);
+  }
+  if (selectedFiles.length > 0) {
+    makeVisibleAnimation(moveButton, 500);
+    makeVisibleAnimation(copyButton, 500);
+  } else {
+    makeHiddenAnimation(moveButton, 500);
+    makeHiddenAnimation(copyButton, 500);
+  }
+}
+function makeVisibleAnimation(element, timeOfAnimation) {
+  element.classList.add("is-visible");
+  element.classList.remove("is-hidden");
+}
+function makeHiddenAnimation(element, timeOfAnimation) {
+  element.classList.add("is-hidden");
+  window.setTimeout(function () {
+    element.classList.remove("is-visible");
+  }, timeOfAnimation);
+}
+let prevScrollPos = window.pageYOffset;
+window.addEventListener("scroll", function () {
+  const currentScrollPos = window.pageYOffset;
+
+  if (prevScrollPos > currentScrollPos) {
+    header.classList.remove("hide");
+  } else {
+    header.classList.add("hide");
+  }
+
+  prevScrollPos = currentScrollPos;
+});
+async function setUserProfilePhotoAsBackground() {
+  const buffer = await client.downloadProfilePhoto("me");
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const fullImageUrl = "data:image/jpeg;base64," + base64;
+  const userPhotoElement = document.querySelectorAll(".user-photo");
+  for (const userphoto of userPhotoElement) {
+    userphoto.style.backgroundImage = `url(${fullImageUrl})`;
+    if (fullImageUrl == "data:image/jpeg;base64,") {
+      userphoto.style.backgroundImage = `url(https://comhub.ru/wp-content/uploads/2018/09/dog1.png)`;
+    }
+  }
+  let me = await client.getMe();
+  me = me.firstName;
+  userName.textContent = `${me}`;
+}
+
+// File upload
+
+async function uploadFile(files) {
+  for (const file of files) {
+    let caption = "";
+    if (await checkRootFolder()) {
+      caption = getPath() + file.name;
+    } else {
+      caption = getPath() + "/" + file.name;
+    }
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const toUpload = new CustomFile(file.name, file.size, "", arrayBuffer);
+      const result = await client.sendFile("me", {
+        file: toUpload,
+        caption: caption,
+        workers: 1,
+      });
+
+      console.log("Файл успешно загружен:", result);
+    } catch (error) {
+      console.error("Ошибка при загрузке файла:", error);
+    }
+  }
+}
+fileInput.addEventListener("change", async (event) => {
+  if (event.target.files.length > 0) {
+    const file = event.target.files;
+    await uploadFile(file);
+  }
+  await updateFileStructure();
+});
+
+// File rename
+
+renameButton.addEventListener("click", async () => {
+  for (const file of selectedFiles) {
+    try {
+      const newName = prompt("Введите новое имя файла");
+      if (newName === null) {
+        return;
+      }
+      file.rename(newName);
+      selectedFiles.length = 0;
+      updateActionButtonVisibility();
+      await updateFileStructure();
+    } catch (error) {
+      console.error("Ошибка при переименовании файла:", error);
+    }
+  }
+});
+
+// File move
+
+const moveBuffer = [];
+moveButton.addEventListener("click", async () => {
+  moveBuffer.push(...selectedFiles);
+  selectedFiles.length = 0;
+  updateActionButtonVisibility();
+  makeVisibleAnimation(acceptMoveButton, 500);
+});
+acceptMoveButton.addEventListener("click", async () => {
+  for (const file of moveBuffer) {
+    try {
+      file.copyTo(getPath());
+      file.delete();
+    } catch (error) {
+      console.error("Ошибка при перемещении файла:", error);
+    }
+  }
+  makeHiddenAnimation(acceptMoveButton, 500);
+  moveBuffer.length = 0;
+  await updateFileStructure();
+});
+
+// File copy
+
+const copyBuffer = [];
+copyButton.addEventListener("click", async () => {
+  copyBuffer.push(...selectedFiles);
+  selectedFiles.length = 0;
+  updateActionButtonVisibility();
+  makeVisibleAnimation(acceptCopyButton, 500);
+});
+acceptCopyButton.addEventListener("click", async () => {
+  for (const file of copyBuffer) {
+    try {
+      file.copyTo(getPath());
+    } catch (error) {
+      console.error("Ошибка при копировании файла:", error);
+    }
+  }
+  makeHiddenAnimation(acceptCopyButton, 500);
+  copyBuffer.length = 0;
+  await updateFileStructure();
+});
+
+// File delete
+
+deleteButton.addEventListener("click", async () => {
+  for (const file of selectedFiles) {
+    try {
+      file.delete();
+    } catch (error) {
+      console.error("Ошибка при удалении файла:", error);
+    }
+  }
+  selectedFiles.length = 0;
+  updateActionButtonVisibility();
+  await updateFileStructure();
+});
+
+// Add account
+
+addUserButton.addEventListener("click", async () => {
+  const me = await client.getMe();
+
+  var savedSession = localStorage.getItem("savedSession");
+
+  var dictionary = {};
+  dictionary[me.firstName] = savedSession;
+
+  localStorage.setItem("cachedSession", JSON.stringify(dictionary));
+
+  localStorage.removeItem("savedSession");
+
+  document.location = "../login.html";
+});
+
+// Create empty folder
+
+createEmptyFolder.addEventListener("click", async () => {
+  let caption = "";
+  const createFolderName = prompt("Введите имя папки");
+  if (createFolderName === null) {
+    return;
+  }
+  if (await checkRootFolder()) {
+    caption = "#EmptyFolder "
+      .concat(getPath())
+      .concat(createFolderName)
+      .concat("/")
+      .concat("NoName");
+  } else {
+    caption = "#EmptyFolder "
+      .concat(getPath())
+      .concat("/")
+      .concat(createFolderName)
+      .concat("/")
+      .concat("NoName");
+  }
+  await client.sendMessage("me", { message: caption });
+  await updateFileStructure();
+});
+
+// Main thread
+
 async function displayFilesAndFolders(fileStructure) {
+  fileList.innerHTML = "";
+  currentFolderName.textContent = fileStructure.name;
+  if (await checkRootFolder()) {
+    backButton.style.display = "none";
+  } else {
+    backButton.style.display = "flex";
+    backButton.onclick = () => {
+      navigationStack.pop();
+      selectedFiles.length = 0;
+      updateActionButtonVisibility();
+      displayFilesAndFolders(navigationStack[navigationStack.length - 1]);
+    };
+  }
+  fileStructure.content.sort(compareFilesAndFolders);
   for (const item of fileStructure.content) {
     if (item.type === "folder") {
       await createFolder(item);
@@ -257,8 +650,10 @@ async function displayFilesAndFolders(fileStructure) {
 
 async function main() {
   await client.connect();
+  setUserProfilePhotoAsBackground();
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
+  navigationStack.push(fileStructure);
   await displayFilesAndFolders(fileStructure);
 }
 

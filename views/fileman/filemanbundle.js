@@ -50169,7 +50169,7 @@ export function  isListLike(item) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.version = void 0;
-exports.version = "2.17.0";
+exports.version = "2.17.8";
 
 },{}],299:[function(require,module,exports){
 (function (Buffer){(function (){
@@ -55089,6 +55089,7 @@ async function sendFile(client, entity, { file, caption, forceDocument = false, 
             clearDraft: clearDraft,
             forceDocument: forceDocument,
             noforwards: noforwards,
+            topMsgId: topMsgId,
         });
     }
     if (Array.isArray(caption)) {
@@ -58050,7 +58051,7 @@ class HTMLParser {
 </pre>`);
                 }
                 else {
-                    html.push(`<pre></pre><code>${entityText}</code><pre>`);
+                    html.push(`<pre>${entityText}</pre>`);
                 }
             }
             else if (entity instanceof tl_1.Api.MessageEntityEmail) {
@@ -65199,7 +65200,7 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
-/* global global, define, System, Reflect, Promise */
+/* global global, define, Symbol, Reflect, Promise, SuppressedError */
 var __extends;
 var __assign;
 var __rest;
@@ -65229,6 +65230,8 @@ var __classPrivateFieldGet;
 var __classPrivateFieldSet;
 var __classPrivateFieldIn;
 var __createBinding;
+var __addDisposableResource;
+var __disposeResources;
 (function (factory) {
     var root = typeof global === "object" ? global : typeof self === "object" ? self : typeof this === "object" ? this : {};
     if (typeof define === "function" && define.amd) {
@@ -65525,6 +65528,53 @@ var __createBinding;
         return typeof state === "function" ? receiver === state : state.has(receiver);
     };
 
+    __addDisposableResource = function (env, value, async) {
+        if (value !== null && value !== void 0) {
+            if (typeof value !== "object") throw new TypeError("Object expected.");
+            var dispose;
+            if (async) {
+                if (!Symbol.asyncDispose) throw new TypeError("Symbol.asyncDispose is not defined.");
+                dispose = value[Symbol.asyncDispose];
+            }
+            if (dispose === void 0) {
+                if (!Symbol.dispose) throw new TypeError("Symbol.dispose is not defined.");
+                dispose = value[Symbol.dispose];
+            }
+            if (typeof dispose !== "function") throw new TypeError("Object not disposable.");
+            env.stack.push({ value: value, dispose: dispose, async: async });
+        }
+        else if (async) {
+            env.stack.push({ async: true });
+        }
+        return value;
+    };
+
+    var _SuppressedError = typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
+        var e = new Error(message);
+        return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
+    };
+
+    __disposeResources = function (env) {
+        function fail(e) {
+            env.error = env.hasError ? new _SuppressedError(e, env.error, "An error was suppressed during disposal.") : e;
+            env.hasError = true;
+        }
+        function next() {
+            while (env.stack.length) {
+                var rec = env.stack.pop();
+                try {
+                    var result = rec.dispose && rec.dispose.call(rec.value);
+                    if (rec.async) return Promise.resolve(result).then(next, function(e) { fail(e); return next(); });
+                }
+                catch (e) {
+                    fail(e);
+                }
+            }
+            if (env.hasError) throw env.error;
+        }
+        return next();
+    };
+
     exporter("__extends", __extends);
     exporter("__assign", __assign);
     exporter("__rest", __rest);
@@ -65554,6 +65604,8 @@ var __createBinding;
     exporter("__classPrivateFieldGet", __classPrivateFieldGet);
     exporter("__classPrivateFieldSet", __classPrivateFieldSet);
     exporter("__classPrivateFieldIn", __classPrivateFieldIn);
+    exporter("__addDisposableResource", __addDisposableResource);
+    exporter("__disposeResources", __disposeResources);
 });
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
@@ -65810,20 +65862,31 @@ function writeFileSync (filename, data, options) {
 
 }).call(this)}).call(this,{"isBuffer":require("C:/Users/APTEMOND/AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'),"/../../node_modules/write-file-atomic/index.js")
 },{"C:/Users/APTEMOND/AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":153,"_process":176,"graceful-fs":250,"imurmurhash":257,"slide":284,"util":217}],398:[function(require,module,exports){
+// Import
 const { Api, TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
+const { CustomFile } = require("telegram/client/uploads");
 const bigInt = require("big-integer");
+
+// TG client init
 
 const apiId = 26855747;
 const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff";
 const savedSession = localStorage.getItem("savedSession");
 const stringSession = new StringSession(savedSession || "");
-const imageCache = new Map();
-const lazyLoadPromises = [];
-
 const client = new TelegramClient(stringSession, apiId, apiHash, {
   connectionRetries: 5,
 });
+
+// global repositories
+
+const imageCache = new Map();
+const fileCache = new Map();
+const lazyLoadPromises = [];
+let navigationStack = [];
+let selectedFiles = [];
+
+// Classes
 
 class File {
   constructor(message, type, file, caption, date, messageId, thumb = null) {
@@ -65834,7 +65897,7 @@ class File {
     this.date = date;
     this.messageId = messageId;
     this.thumb = thumb;
-    this.name = caption.split('/').pop();
+    this.name = caption.split("/").pop();
   }
   async getCachedImage() {
     if (imageCache.has(this.file.id.toString())) {
@@ -65842,49 +65905,114 @@ class File {
     } else {
       const fileURL = await this.downloadPreview();
       imageCache.set(this.file.id.toString(), fileURL);
-      console.log(imageCache);
-      return fileURL
+      return fileURL;
     }
   }
-  
+  async getCachedFile() {
+    if (fileCache.has(this.file.id.toString())) {
+      return fileCache.get(this.file.id.toString());
+    } else {
+      const fileURL = await this.downloadFullFile();
+      fileCache.set(this.file.id.toString(), fileURL);
+      return fileURL;
+    }
+  }
   async downloadPreview() {
-    if (this.type === 'video') {
+    if (this.type === "video") {
       const [, thumb] = this.thumb;
       const buffer = await client.downloadMedia(this.message, { thumb });
-      return URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
-    } else if (this.type === 'photo') {
+      return URL.createObjectURL(new Blob([buffer], { type: "image/png" }));
+    } else if (this.type === "photo") {
       const buffer = await client.downloadMedia(this.file);
-      return URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
+      return URL.createObjectURL(new Blob([buffer], { type: "image/png" }));
     }
   }
-
-  async downloadFullFile(progressBar) {
-    if (this.type === 'video') {
+  async downloadFullFile() {
+    if (this.type === "video") {
       let totalSize = bigInt(0);
       let downloadedSize = bigInt(0);
+      const progressBar = document.getElementById("videoProgressBar");
 
       const buffer = await client.downloadMedia(this.file, {
         progressCallback: (downloaded, fullSize) => {
           downloadedSize = bigInt(downloaded);
           totalSize = bigInt(fullSize);
-          const percentage = Number((downloadedSize * bigInt(100) / totalSize).toString());
+          const percentage = Number(
+            ((downloadedSize * bigInt(100)) / totalSize).toString()
+          );
           progressBar.value = percentage;
-        }
+        },
       });
 
       progressBar.value = 100;
       progressBar.style.display = "none";
-      return URL.createObjectURL(new Blob([buffer], { type: 'video/mp4' }));
-    } else if (this.type === 'photo') {
-      return this.getCachedImage;
+      return URL.createObjectURL(new Blob([buffer], { type: "video/mp4" }));
+    } else if (this.type === "photo") {
+      return this.getCachedImage();
     }
+  }
+  async rename(newName) {
+    const fileId = this.messageId;
+    if (getPath() === "") {
+      await client.editMessage("me", {
+        message: fileId,
+        text: getPath().concat(newName),
+      });
+    } else {
+      await client.editMessage("me", {
+        message: fileId,
+        text: getPath().concat("/").concat(newName),
+      });
+    }
+  }
+  async moveTo(newPath) {
+    const filename = this.name;
+    if (newPath === "") {
+      const result = await client.sendFile("me", {
+        file: this.file,
+        caption: newPath.concat(filename),
+        workers: 1,
+      });
+    } else {
+      const result = await client.sendFile("me", {
+        file: this.file,
+        caption: newPath.concat("/").concat(filename),
+        workers: 1,
+      });
+    }
+    console.log("Файл скопирован");
+    this.delete();
+  }
+  async copyTo(newPath) {
+    const filename = this.name;
+    if (newPath === "") {
+      const result = await client.sendFile("me", {
+        file: this.file,
+        caption: newPath.concat(filename),
+        workers: 1,
+      });
+    } else {
+      const result = await client.sendFile("me", {
+        file: this.file,
+        caption: newPath.concat("/").concat(filename),
+        workers: 1,
+      });
+    }
+    console.log("Файл скопирован");
+  }
+  async delete() {
+    const fileId = this.messageId;
+    await client.deleteMessages("me", [fileId], {
+      revoke: true,
+    });
+    console.log("Файл успешно удален:", this.message);
   }
 }
 
 class Folder {
   constructor(name) {
     this.name = name;
-    this.type = 'folder';
+    this.type = "folder";
     this.content = [];
   }
 
@@ -65897,7 +66025,7 @@ class Folder {
   }
 }
 
-
+// Elements
 
 const userPhoto = document.getElementById("user-photo");
 const fileList = document.getElementById("file-list");
@@ -65915,24 +66043,32 @@ const moveButton = document.getElementById("move-button");
 const acceptMoveButton = document.getElementById("accept-move-button");
 const copyButton = document.getElementById("copy-button");
 const acceptCopyButton = document.getElementById("accept-copy-button");
-const sideBar = document.getElementById('side-bar');
-const blackScreen = document.getElementById('black-screen');
-const userChoose = document.getElementById('user-choose');
-const userList = document.getElementById('user_list');
-const addUserButton = document.getElementById('add_user_button');
+const sideBar = document.getElementById("side-bar");
+const blackScreen = document.getElementById("black-screen");
+const userChoose = document.getElementById("user-choose");
+const userList = document.getElementById("user_list");
+const addUserButton = document.getElementById("add_user_button");
+const backButton = document.getElementById("back-button");
+const createEmptyFolder = document.getElementById("create-folder");
+const renameButton = document.getElementById("rename-button");
+const deleteButton = document.getElementById("delete-button");
+const userName = document.getElementById("user-name");
+
+// Structural functions
 
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
   const messages = await client.getMessages(mePeerId);
 
   const photos = messages
-    .filter(message =>
-      message.media instanceof Api.MessageMediaPhoto ||
-      message.message?.startsWith("#EmptyFolder ")
+    .filter(
+      (message) =>
+        message.media instanceof Api.MessageMediaPhoto ||
+        message.message?.startsWith("#EmptyFolder ")
     )
-    .map(message => ({
+    .map((message) => ({
       message,
-      type: 'photo',
+      type: "photo",
       file: message.media && message.media.photo,
       caption: message.message,
       date: message.date,
@@ -65940,13 +66076,14 @@ async function getFilesFromMeDialog() {
     }));
 
   const videos = messages
-    .filter(message =>
-      message.media instanceof Api.MessageMediaDocument &&
-      message.media.document.mimeType === "video/mp4"
+    .filter(
+      (message) =>
+        message.media instanceof Api.MessageMediaDocument &&
+        message.media.document.mimeType === "video/mp4"
     )
-    .map(message => ({
+    .map((message) => ({
       message,
-      type: 'video',
+      type: "video",
       file: message.media.document,
       caption: message.message,
       date: message.date,
@@ -65957,23 +66094,21 @@ async function getFilesFromMeDialog() {
   const files = [...photos, ...videos].sort((a, b) => b.date - a.date);
   return files;
 }
-
 function buildFileStructure(files) {
   const root = new Folder("root");
 
   for (const file of files) {
     const path = file.caption.split("/");
     if (path[0].includes("#EmptyFolder")) {
-      path[0] = path[0].replace("#EmptyFolder ", '');
+      path[0] = path[0].replace("#EmptyFolder ", "");
     }
 
     let currentFolder = root;
 
     for (const folderName of path.slice(0, -1)) {
       let foundFolder = currentFolder.content.find(
-        item => item instanceof Folder && item.name === folderName
+        (item) => item instanceof Folder && item.name === folderName
       );
-
       if (!foundFolder) {
         foundFolder = new Folder(folderName);
         currentFolder.addFolder(foundFolder);
@@ -65981,33 +66116,29 @@ function buildFileStructure(files) {
 
       currentFolder = foundFolder;
     }
-
-    const fileName = path[path.length - 1];
-    const newFile = new File(
-      file.message,
-      file.type,
-      file.file,
-      file.caption,
-      file.date,
-      file.messageId,
-      file.thumb || ''
-    );
-
-    currentFolder.addFile(newFile);
+    if (file.caption.indexOf("#EmptyFolder")) {
+      const newFile = new File(
+        file.message,
+        file.type,
+        file.file,
+        file.caption,
+        file.date,
+        file.messageId,
+        file.thumb || ""
+      );
+      currentFolder.addFile(newFile);
+    }
   }
 
   return root;
 }
-
 async function lazyLoadImage(divElement, item) {
   const observer = new IntersectionObserver(async (entries) => {
-    console.log(entries);
     if (entries[0].isIntersecting) {
       try {
         const fileURL = await item.getCachedImage();
-        divElement.style.backgroundColor = 'none';
+        divElement.style.backgroundColor = "none";
         divElement.style.backgroundImage = `url(${fileURL})`;
-        // item.file.src = fullImageUrl;
       } catch (error) {
         console.error(`Error loading image ${error}`);
       }
@@ -66023,15 +66154,26 @@ async function createFileElement(item) {
   const filename = document.createElement("div");
   divElement.className = "image-tile";
   listItem.appendChild(divElement);
-  filename.textContent = item.caption || 'NoName';
+  filename.textContent = item.name || "NoName";
   filename.className = "file-name";
   listItem.appendChild(filename);
   fileList.appendChild(listItem);
   lazyLoadPromises.push(lazyLoadImage(divElement, item));
-  // const fileURL = await item.getCachedImage()
-  // divElement.style.backgroundImage = `url(${fileURL})`;
+  listItem.addEventListener("click", () => openModal(item));
+  onLongPress(listItem, () => {
+    if (listItem.classList.contains("selected")) {
+      listItem.classList.remove("selected");
+      selectedFiles.splice(
+        findIndexByMessageId(selectedFiles, item.message.id),
+        1
+      );
+    } else {
+      listItem.classList.add("selected");
+      selectedFiles.push(item);
+    }
+    updateActionButtonVisibility();
+  });
 }
-
 async function createFolder(folder) {
   const listItem = document.createElement("li");
   listItem.className = "li-tile";
@@ -66043,10 +66185,354 @@ async function createFolder(folder) {
   listItem.appendChild(folderTile);
   listItem.appendChild(divElement);
   fileList.appendChild(listItem);
+  listItem.addEventListener("click", async () => {
+    navigationStack.push(folder);
+    await displayFilesAndFolders(folder);
+  });
+  onLongPress(listItem, () => {
+    if (listItem.classList.contains("selected")) {
+      listItem.classList.remove("selected");
+      for (const item of getItemsInFolder(folder)) {
+        selectedFiles.splice(
+          findIndexByMessageId(selectedFiles, item.message.id),
+          1
+        );
+      }
+    } else {
+      listItem.classList.add("selected");
+      selectedFiles.push(...getItemsInFolder(folder));
+    }
+    updateActionButtonVisibility();
+  });
 }
+async function openModal(item) {
+  if (item.type == "video") {
+    modalVideo.src = "";
+    modalv.style.display = "block";
+    const fileURL = await item.getCachedFile();
+    modalVideo.src = fileURL;
+  } else {
+    const fileURL = await item.getCachedFile();
+    modalImage.src = fileURL;
+    modal.style.display = "block";
+  }
+}
+
+// Auxiliary functions
+
+async function checkRootFolder() {
+  if (navigationStack.length <= 1) {
+    return true;
+  } else {
+    return false;
+  }
+}
+function compareFilesAndFolders(a, b) {
+  if (a instanceof Folder && !(b instanceof Folder)) {
+    return -1;
+  } else if (!(a instanceof Folder) && b instanceof Folder) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+function getPath() {
+  const currentFolderPath = navigationStack
+    .slice(1)
+    .map((folder) => folder.name)
+    .join("/");
+  return currentFolderPath;
+}
+async function findObjectByName(obj, name) {
+  console.log(obj.name);
+  if (obj.name === name) {
+    return obj;
+  }
+  for (const key in obj) {
+    if (typeof obj[key] === "object") {
+      const result = await findObjectByName(obj[key], name);
+      if (result) {
+        return result;
+      }
+    }
+  }
+
+  return null;
+}
+async function updateFileStructure() {
+  const files = await getFilesFromMeDialog();
+  const fileStructure = buildFileStructure(files);
+  const currentFolder = await findObjectByName(
+    fileStructure,
+    currentFolderName.textContent
+  );
+  await displayFilesAndFolders(currentFolder);
+}
+function onLongPress(element, callback) {
+  let timer;
+
+  element.addEventListener("touchstart", () => {
+    timer = setTimeout(() => {
+      timer = null;
+      callback();
+    }, 600);
+  });
+
+  function cancel() {
+    clearTimeout(timer);
+  }
+
+  element.addEventListener("touchend", cancel);
+  element.addEventListener("touchmove", cancel);
+}
+function findIndexByMessageId(array, findId) {
+  let index = array.findIndex((item) => item.message.id === findId);
+  return index;
+}
+function getItemsInFolder(obj) {
+  const items = [];
+  for (const item of obj.content)
+    if (item instanceof File) {
+      items.push(item);
+    } else {
+      items.push(...getItemsInFolder(item));
+    }
+  return items;
+}
+function updateActionButtonVisibility() {
+  if (selectedFiles.length === 1) {
+    makeVisibleAnimation(renameButton, 500);
+  } else {
+    makeHiddenAnimation(renameButton, 500);
+  }
+  if (selectedFiles.length > 0) {
+    currentFolderName.style.removeProperty("transition");
+    makeVisibleAnimation(deleteButton, 500);
+  } else {
+    currentFolderName.style.transition = "0.2s";
+    makeHiddenAnimation(deleteButton, 500);
+  }
+  if (selectedFiles.length > 0) {
+    makeVisibleAnimation(moveButton, 500);
+    makeVisibleAnimation(copyButton, 500);
+  } else {
+    makeHiddenAnimation(moveButton, 500);
+    makeHiddenAnimation(copyButton, 500);
+  }
+}
+function makeVisibleAnimation(element, timeOfAnimation) {
+  element.classList.add("is-visible");
+  element.classList.remove("is-hidden");
+}
+function makeHiddenAnimation(element, timeOfAnimation) {
+  element.classList.add("is-hidden");
+  window.setTimeout(function () {
+    element.classList.remove("is-visible");
+  }, timeOfAnimation);
+}
+let prevScrollPos = window.pageYOffset;
+window.addEventListener("scroll", function () {
+  const currentScrollPos = window.pageYOffset;
+
+  if (prevScrollPos > currentScrollPos) {
+    header.classList.remove("hide");
+  } else {
+    header.classList.add("hide");
+  }
+
+  prevScrollPos = currentScrollPos;
+});
+async function setUserProfilePhotoAsBackground() {
+  const buffer = await client.downloadProfilePhoto("me");
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const fullImageUrl = "data:image/jpeg;base64," + base64;
+  const userPhotoElement = document.querySelectorAll(".user-photo");
+  for (const userphoto of userPhotoElement) {
+    userphoto.style.backgroundImage = `url(${fullImageUrl})`;
+    if (fullImageUrl == "data:image/jpeg;base64,") {
+      userphoto.style.backgroundImage = `url(https://comhub.ru/wp-content/uploads/2018/09/dog1.png)`;
+    }
+  }
+  let me = await client.getMe();
+  me = me.firstName;
+  userName.textContent = `${me}`;
+}
+
+// File upload
+
+async function uploadFile(files) {
+  for (const file of files) {
+    let caption = "";
+    if (await checkRootFolder()) {
+      caption = getPath() + file.name;
+    } else {
+      caption = getPath() + "/" + file.name;
+    }
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const toUpload = new CustomFile(file.name, file.size, "", arrayBuffer);
+      const result = await client.sendFile("me", {
+        file: toUpload,
+        caption: caption,
+        workers: 1,
+      });
+
+      console.log("Файл успешно загружен:", result);
+    } catch (error) {
+      console.error("Ошибка при загрузке файла:", error);
+    }
+  }
+}
+fileInput.addEventListener("change", async (event) => {
+  if (event.target.files.length > 0) {
+    const file = event.target.files;
+    await uploadFile(file);
+  }
+  await updateFileStructure();
+});
+
+// File rename
+
+renameButton.addEventListener("click", async () => {
+  for (const file of selectedFiles) {
+    try {
+      const newName = prompt("Введите новое имя файла");
+      if (newName === null) {
+        return;
+      }
+      file.rename(newName);
+      selectedFiles.length = 0;
+      updateActionButtonVisibility();
+      await updateFileStructure();
+    } catch (error) {
+      console.error("Ошибка при переименовании файла:", error);
+    }
+  }
+});
+
+// File move
+
+const moveBuffer = [];
+moveButton.addEventListener("click", async () => {
+  moveBuffer.push(...selectedFiles);
+  selectedFiles.length = 0;
+  updateActionButtonVisibility();
+  makeVisibleAnimation(acceptMoveButton, 500);
+});
+acceptMoveButton.addEventListener("click", async () => {
+  for (const file of moveBuffer) {
+    try {
+      file.copyTo(getPath());
+      file.delete();
+    } catch (error) {
+      console.error("Ошибка при перемещении файла:", error);
+    }
+  }
+  makeHiddenAnimation(acceptMoveButton, 500);
+  moveBuffer.length = 0;
+  await updateFileStructure();
+});
+
+// File copy
+
+const copyBuffer = [];
+copyButton.addEventListener("click", async () => {
+  copyBuffer.push(...selectedFiles);
+  selectedFiles.length = 0;
+  updateActionButtonVisibility();
+  makeVisibleAnimation(acceptCopyButton, 500);
+});
+acceptCopyButton.addEventListener("click", async () => {
+  for (const file of copyBuffer) {
+    try {
+      file.copyTo(getPath());
+    } catch (error) {
+      console.error("Ошибка при копировании файла:", error);
+    }
+  }
+  makeHiddenAnimation(acceptCopyButton, 500);
+  copyBuffer.length = 0;
+  await updateFileStructure();
+});
+
+// File delete
+
+deleteButton.addEventListener("click", async () => {
+  for (const file of selectedFiles) {
+    try {
+      console.log(selectedFiles);
+      file.delete();
+    } catch (error) {
+      console.error("Ошибка при удалении файла:", error);
+    }
+  }
+  selectedFiles.length = 0;
+  updateActionButtonVisibility();
+  await updateFileStructure();
+});
+
+// Add account
+
+addUserButton.addEventListener("click", async () => {
+  const me = await client.getMe();
+
+  var savedSession = localStorage.getItem("savedSession");
+
+  var dictionary = {};
+  dictionary[me.firstName] = savedSession;
+
+  localStorage.setItem("cachedSession", JSON.stringify(dictionary));
+
+  localStorage.removeItem("savedSession");
+
+  document.location = "../login.html";
+});
+
+// Create empty folder
+
+createEmptyFolder.addEventListener("click", async () => {
+  let caption = "";
+  const createFolderName = prompt("Введите имя папки");
+  if (createFolderName === null) {
+    return;
+  }
+  if (await checkRootFolder()) {
+    caption = "#EmptyFolder "
+      .concat(getPath())
+      .concat(createFolderName)
+      .concat("/")
+      .concat("NoName");
+  } else {
+    caption = "#EmptyFolder "
+      .concat(getPath())
+      .concat("/")
+      .concat(createFolderName)
+      .concat("/")
+      .concat("NoName");
+  }
+  await client.sendMessage("me", { message: caption });
+  await updateFileStructure();
+});
+
+// Main thread
+
 async function displayFilesAndFolders(fileStructure) {
+  fileList.innerHTML = "";
+  currentFolderName.textContent = fileStructure.name;
+  if (await checkRootFolder()) {
+    backButton.style.display = "none";
+  } else {
+    backButton.style.display = "flex";
+    backButton.onclick = () => {
+      navigationStack.pop();
+      selectedFiles.length = 0;
+      updateActionButtonVisibility();
+      displayFilesAndFolders(navigationStack[navigationStack.length - 1]);
+    };
+  }
+  fileStructure.content.sort(compareFilesAndFolders);
   for (const item of fileStructure.content) {
-    if (item.type === 'folder') {
+    if (item.type === "folder") {
       await createFolder(item);
     } else {
       await createFileElement(item);
@@ -66057,11 +66543,15 @@ async function displayFilesAndFolders(fileStructure) {
 
 async function main() {
   await client.connect();
+  setUserProfilePhotoAsBackground();
   const files = await getFilesFromMeDialog();
   const fileStructure = buildFileStructure(files);
+  navigationStack.push(fileStructure);
   await displayFilesAndFolders(fileStructure);
 }
 
 main();
 
-},{"big-integer":226,"telegram":346,"telegram/sessions":366}]},{},[398]);
+},{"big-integer":399,"telegram":346,"telegram/client/uploads":315,"telegram/sessions":366}],399:[function(require,module,exports){
+arguments[4][226][0].apply(exports,arguments)
+},{"dup":226}]},{},[398]);

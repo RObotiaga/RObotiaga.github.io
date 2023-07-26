@@ -12,7 +12,7 @@ const stringSession = new StringSession(savedSession || ""); // Create StringSes
 const loginTextContainer = document.getElementById("loginTextContainer");
 const codeTextContainer = document.getElementById("codeTextContainer");
 const qrCodeContainer = document.getElementById("qrCodeContainer");
-const backToSelection = document.querySelectorAll('.back_selection');
+const backToSelection = document.querySelectorAll(".back_selection");
 // Get DOM elements
 const loginButton = document.getElementById("login_button");
 loginButton.addEventListener("click", showCodeInput);
@@ -21,12 +21,13 @@ codeButton.addEventListener("click", loginTelegram);
 const qrCodeButton = document.getElementById("login_with_qr");
 qrCodeButton.addEventListener("click", loginWithQRCode);
 
-
-backToSelection.forEach(input => input.addEventListener("click", () => {
-  loginTextContainer.style.display = "flex";
-  qrCodeContainer.style.display = "none";
-  codeTextContainer.style.display = "none";
-}));
+backToSelection.forEach((input) =>
+  input.addEventListener("click", () => {
+    loginTextContainer.style.display = "flex";
+    qrCodeContainer.style.display = "none";
+    codeTextContainer.style.display = "none";
+  })
+);
 
 // Create Telegram client
 const client = new TelegramClient(stringSession, apiId, apiHash, {
@@ -110,7 +111,7 @@ async function showCodeInput() {
   console.log(result.phoneCodeHash);
 }
 if (localStorage.getItem("cachedSession")) {
-  const userList = document.getElementById('logged_accounts');
+  const userList = document.getElementById("logged_accounts");
   // Создаем новый div элемент
   var loggedButton = document.createElement("button");
   loggedButton.classList.add("choose_logged_account");
@@ -119,35 +120,38 @@ if (localStorage.getItem("cachedSession")) {
 
   // Находим элемент с классом "centered" и идентификатором "queue"
   var queueElement = document.getElementById("queue");
-  
-  var cachedSession = JSON.parse(localStorage.getItem('cachedSession'));
+
+  var cachedSession = JSON.parse(localStorage.getItem("cachedSession"));
   for (var key in cachedSession) {
-    var button = document.createElement('button');
-    button.classList.add('button_b', 'choose-user');
+    var button = document.createElement("button");
+    button.classList.add("button_b", "choose-user");
     button.textContent = key;
     // console.log(key);
     queueElement.appendChild(loggedButton);
-    button.addEventListener('click', function(event) {
+    button.addEventListener("click", function (event) {
       // console.log(cachedSession[event.target.textContent]);
-      localStorage.setItem('savedSession', cachedSession[event.target.textContent]);
+      localStorage.setItem(
+        "savedSession",
+        cachedSession[event.target.textContent]
+      );
       delete cachedSession[event.target.textContent];
-      localStorage.setItem('cachedSession', JSON.stringify(cachedSession));
+      localStorage.setItem("cachedSession", JSON.stringify(cachedSession));
       window.location.href = "photomanager.html";
     });
-  
+
     // // Добавление кнопки в начало user_list
     userList.appendChild(button);
   }
   // Вставляем новый div после элемента "queue"
   loggedButton.addEventListener("click", async () => {
     if (userList.style.transform === "scale(0)") {
-      userList.style.transform = 'scale(1)';
-      loggedButton.style.display = 'none';
+      userList.style.transform = "scale(1)";
+      loggedButton.style.display = "none";
     } else {
-      userList.style.transform = 'scale(0)';
+      userList.style.transform = "scale(0)";
     }
-  }
-)};
+  });
+}
 // Asynchronous initialization function
 async function init() {
   if (savedSession) {

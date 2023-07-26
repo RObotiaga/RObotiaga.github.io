@@ -42,7 +42,6 @@ window.addEventListener("scroll", function () {
   prevScrollPos = currentScrollPos;
 });
 
-
 function cacheImage(fileId, imageUrl) {
   imageCache.set(fileId, imageUrl);
 }
@@ -61,8 +60,8 @@ async function getFilesFromMeDialog() {
   const photos = messages
     .filter(
       (message) =>
-      (message.media instanceof Api.MessageMediaPhoto ||
-        message.message?.startsWith("#EmptyFolder "))
+        message.media instanceof Api.MessageMediaPhoto ||
+        message.message?.startsWith("#EmptyFolder ")
     )
     .map((message) => ({
       message: message,
@@ -73,7 +72,11 @@ async function getFilesFromMeDialog() {
     }));
 
   const videos = messages
-    .filter((message) => message.media instanceof Api.MessageMediaDocument && message.media.document.mimeType === "video/mp4")
+    .filter(
+      (message) =>
+        message.media instanceof Api.MessageMediaDocument &&
+        message.media.document.mimeType === "video/mp4"
+    )
     .map((message) => ({
       message: message,
       video: message.media.document,
@@ -87,7 +90,6 @@ async function getFilesFromMeDialog() {
   return files;
 }
 
-
 function buildFileStructure(files) {
   const root = {
     name: "root",
@@ -97,7 +99,7 @@ function buildFileStructure(files) {
   for (const file of files) {
     const path = file.caption.split("/");
     if (path[0].includes("#EmptyFolder")) {
-      path[0] = path[0].replace("#EmptyFolder ", '');
+      path[0] = path[0].replace("#EmptyFolder ", "");
     }
     let currentFolder = root;
     for (const folderName of path.slice(0, -1)) {
@@ -122,7 +124,6 @@ function buildFileStructure(files) {
       message: file.message,
       video: file.video,
     });
-
   }
   return root;
 }
@@ -143,473 +144,502 @@ const moveButton = document.getElementById("move-button");
 const acceptMoveButton = document.getElementById("accept-move-button");
 const copyButton = document.getElementById("copy-button");
 const acceptCopyButton = document.getElementById("accept-copy-button");
-const sideBar = document.getElementById('side-bar');
-const blackScreen = document.getElementById('black-screen');
-const userChoose = document.getElementById('user-choose');
-const userList = document.getElementById('user_list');
-const addUserButton = document.getElementById('add_user_button');
+const sideBar = document.getElementById("side-bar");
+const blackScreen = document.getElementById("black-screen");
+const userChoose = document.getElementById("user-choose");
+const userList = document.getElementById("user_list");
+const addUserButton = document.getElementById("add_user_button");
 
 addUserButton.addEventListener("click", async () => {
-
   me = await client.getMe();
 
-  var savedSession = localStorage.getItem('savedSession');
+  var savedSession = localStorage.getItem("savedSession");
 
   var dictionary = {};
   dictionary[me.firstName] = savedSession;
 
-  localStorage.setItem('cachedSession', JSON.stringify(dictionary));
+  localStorage.setItem("cachedSession", JSON.stringify(dictionary));
 
-  localStorage.removeItem('savedSession');
+  localStorage.removeItem("savedSession");
 
-  document.location = '../login.html';
+  document.location = "../login.html";
 });
 
-let sideBarOpen = false;
-userPhoto.addEventListener("click", async () => {
-  sideBarOpen = true;
-  blackScreen.style.visibility = 'visible';
-  blackScreen.style.background = 'rgb(0 0 0 / 30%)';
-  sideBar.style.left = '0';
-});
+// let sideBarOpen = false;
+// userPhoto.addEventListener("click", async () => {
+//   sideBarOpen = true;
+//   blackScreen.style.visibility = "visible";
+//   blackScreen.style.background = "rgb(0 0 0 / 30%)";
+//   sideBar.style.left = "0";
+// });
 
-let userListOpen = false;
-userChoose.addEventListener("click", async () => {
-  var userCount = userList.childElementCount;
+// let userListOpen = false;
+// userChoose.addEventListener("click", async () => {
+//   var userCount = userList.childElementCount;
 
-  var minHeight = 50;
-  var vwMultiplier = 8;
+//   var minHeight = 50;
+//   var vwMultiplier = 8;
 
-  var heightValue = 'min(' + (minHeight * userCount) + 'px,' + (vwMultiplier * userCount) + 'vw)';
-  if (userListOpen === false) {
-    userChoose.style.transform = 'scale(-1)';
-    userList.style.height = heightValue;
-    userListOpen = true;
-  } else {
-    userChoose.style.transform = 'scale(1)';
-    userList.style.height = '0vw';
-    userListOpen = false;
-  }
-});
+//   var heightValue =
+//     "min(" + minHeight * userCount + "px," + vwMultiplier * userCount + "vw)";
+//   if (userListOpen === false) {
+//     userChoose.style.transform = "scale(-1)";
+//     userList.style.height = heightValue;
+//     userListOpen = true;
+//   } else {
+//     userChoose.style.transform = "scale(1)";
+//     userList.style.height = "0vw";
+//     userListOpen = false;
+//   }
+// });
 
-document.addEventListener("click", (event) => {
-  if (sideBarOpen && !sideBar.contains(event.target) && event.target !== userPhoto) {
-    sideBarOpen = false;
-    blackScreen.style.visibility = 'hidden';
-    blackScreen.style.background = 'none';
-    sideBar.style.left = '-65vw';
-  }
-});
+// document.addEventListener("click", (event) => {
+//   if (
+//     sideBarOpen &&
+//     !sideBar.contains(event.target) &&
+//     event.target !== userPhoto
+//   ) {
+//     sideBarOpen = false;
+//     blackScreen.style.visibility = "hidden";
+//     blackScreen.style.background = "none";
+//     sideBar.style.left = "-65vw";
+//   }
+// });
 
-async function* streamDownloadedChunks(downloadOptions) {
-  const document = downloadOptions.message.message.media.document;
-  console.log(document);
-  const iter = client.iterDownload({
-    file: new Api.InputDocumentFileLocation({
-      id: bigInt(document.id.value),
-      fileReference: Buffer.from(document.fileReference),
-      accessHash: bigInt(document.accessHash.value),
-      thumbSize: ""
-    }),
-    offset: bigInt(0),
-    requestSize: 64 * 1024
-  });
-  for await (const chunk of iter) {
-    yield chunk;
-  }
-}
+// async function* streamDownloadedChunks(downloadOptions) {
+//   const document = downloadOptions.message.message.media.document;
+//   console.log(document);
+//   const iter = client.iterDownload({
+//     file: new Api.InputDocumentFileLocation({
+//       id: bigInt(document.id.value),
+//       fileReference: Buffer.from(document.fileReference),
+//       accessHash: bigInt(document.accessHash.value),
+//       thumbSize: "",
+//     }),
+//     offset: bigInt(0),
+//     requestSize: 64 * 1024,
+//   });
+//   for await (const chunk of iter) {
+//     yield chunk;
+//   }
+// }
 
-async function downloadVideoFile(message) {
-  const videoElement = document.getElementById('modal-video');
-  const videoSource = document.getElementById('videoSource');
-  const progressBar = document.getElementById('videoProgressBar');
-  progressBar.style.display = "block";
-  let totalSize = BigInt(message.video.size);
-  let downloadedSize = BigInt(0);
+// async function downloadVideoFile(message) {
+//   const videoElement = document.getElementById("modal-video");
+//   const videoSource = document.getElementById("videoSource");
+//   const progressBar = document.getElementById("videoProgressBar");
+//   progressBar.style.display = "block";
+//   let totalSize = BigInt(message.video.size);
+//   let downloadedSize = BigInt(0);
 
-  let mediaSource = new MediaSource();
-  videoSource.src = URL.createObjectURL(mediaSource);
-  const chunks = [];
-  for await (const chunk of streamDownloadedChunks({
-    video: message.video,
-    message: message,
-    offset: BigInt(0),
-    limit: 64 * 1024,
-    requestSize: 2048 * 1024
-  })) {
-    downloadedSize += BigInt(chunk.length);
-    const percentage = Number((downloadedSize * BigInt(100) / totalSize).toString());
-    progressBar.value = percentage;
+//   let mediaSource = new MediaSource();
+//   videoSource.src = URL.createObjectURL(mediaSource);
+//   const chunks = [];
+//   for await (const chunk of streamDownloadedChunks({
+//     video: message.video,
+//     message: message,
+//     offset: BigInt(0),
+//     limit: 64 * 1024,
+//     requestSize: 2048 * 1024,
+//   })) {
+//     downloadedSize += BigInt(chunk.length);
+//     const percentage = Number(
+//       ((downloadedSize * BigInt(100)) / totalSize).toString()
+//     );
+//     progressBar.value = percentage;
 
-    chunks.push(chunk);
-    const mergedBuffer = Buffer.concat(chunks);
-    const blobFile = new Blob([mergedBuffer], { type: 'video/mp4' });
-    const videoSrc = URL.createObjectURL(blobFile);
-    videoSource.src = videoSrc;
-  }
+//     chunks.push(chunk);
+//     const mergedBuffer = Buffer.concat(chunks);
+//     const blobFile = new Blob([mergedBuffer], { type: "video/mp4" });
+//     const videoSrc = URL.createObjectURL(blobFile);
+//     videoSource.src = videoSrc;
+//   }
 
-  progressBar.value = 100;
-  progressBar.style.display = "none";
+//   progressBar.value = 100;
+//   progressBar.style.display = "none";
 
-  const mergedBuffer = Buffer.concat(chunks);
-  const blobFile = new Blob([mergedBuffer], { type: 'video/mp4' });
-  const url = URL.createObjectURL(blobFile);
+//   const mergedBuffer = Buffer.concat(chunks);
+//   const blobFile = new Blob([mergedBuffer], { type: "video/mp4" });
+//   const url = URL.createObjectURL(blobFile);
 
-  if (downloadedSize === totalSize) {
-    console.log('Download completed');
-  }
+//   if (downloadedSize === totalSize) {
+//     console.log("Download completed");
+//   }
 
-  return url;
-}
+//   return url;
+// }
 
-async function openModal(item) {
-  if (Array.isArray(item.file)) {
-    modalVideo.src = '';
-    modalv.style.display = "block";
+// async function openModal(item) {
+//   if (Array.isArray(item.file)) {
+//     modalVideo.src = "";
+//     modalv.style.display = "block";
 
-    const progressBar = document.getElementById('videoProgressBar');
-    progressBar.value = 0;
+//     const progressBar = document.getElementById("videoProgressBar");
+//     progressBar.value = 0;
 
-    const videoSrc = await downloadVideoFile(item);
-    modalVideo.src = videoSrc;
-  } else {
-    modalImage.src = item.file.src;
-    modal.style.display = "block";
-  }
-}
+//     const videoSrc = await downloadVideoFile(item);
+//     modalVideo.src = videoSrc;
+//   } else {
+//     modalImage.src = item.file.src;
+//     modal.style.display = "block";
+//   }
+// }
 
-function closeModal() {
-  modal.style.display = "none";
-}
+// function closeModal() {
+//   modal.style.display = "none";
+// }
 
-function closeModalV() {
-  modalVideo.pause();
-  modalv.style.display = "none";
-}
+// function closeModalV() {
+//   modalVideo.pause();
+//   modalv.style.display = "none";
+// }
 
-closeBtn.addEventListener("click", closeModal);
-closevBtn.addEventListener("click", closeModalV);
+// closeBtn.addEventListener("click", closeModal);
+// closevBtn.addEventListener("click", closeModalV);
 
-async function lazyLoadImage(imageDivElement, item) {
-  let fileId;
-  if (!Array.isArray(item.file)) {
-    fileId = item.file.id.toString();
-    if (isImageCached(fileId)) {
-      imageDivElement.style.backgroundImage = `url(${getCachedImage(fileId)})`;
-      item.file.src = getCachedImage(fileId);
-      return;
-    }
-  }
-  const observer = new IntersectionObserver(async (entries) => {
-    if (entries[0].isIntersecting) {
-      try {
-        let fullImageUrl;
-        if (Array.isArray(item.file)) {
-          const [, thumb] = item.file;
-          const buffer = await client.downloadMedia(item.message, { thumb });
-          fullImageUrl = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
-        } else {
-          const buffer = await client.downloadMedia(item.file);
-          fullImageUrl = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
-          cacheImage(fileId, fullImageUrl);
-        }
-        imageDivElement.style.backgroundColor = 'none';
-        imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
-        item.file.src = fullImageUrl;
-      } catch (error) {
-        console.error(`Error loading image ${error}`);
-      }
-      observer.disconnect();
-    }
-  });
+// async function lazyLoadImage(imageDivElement, item) {
+//   let fileId;
+//   if (!Array.isArray(item.file)) {
+//     fileId = item.file.id.toString();
+//     if (isImageCached(fileId)) {
+//       imageDivElement.style.backgroundImage = `url(${getCachedImage(fileId)})`;
+//       item.file.src = getCachedImage(fileId);
+//       return;
+//     }
+//   }
+//   const observer = new IntersectionObserver(async (entries) => {
+//     if (entries[0].isIntersecting) {
+//       try {
+//         let fullImageUrl;
+//         if (Array.isArray(item.file)) {
+//           const [, thumb] = item.file;
+//           const buffer = await client.downloadMedia(item.message, { thumb });
+//           fullImageUrl = URL.createObjectURL(
+//             new Blob([buffer], { type: "image/png" })
+//           );
+//         } else {
+//           const buffer = await client.downloadMedia(item.file);
+//           fullImageUrl = URL.createObjectURL(
+//             new Blob([buffer], { type: "image/png" })
+//           );
+//           cacheImage(fileId, fullImageUrl);
+//         }
+//         imageDivElement.style.backgroundColor = "none";
+//         imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
+//         item.file.src = fullImageUrl;
+//       } catch (error) {
+//         console.error(`Error loading image ${error}`);
+//       }
+//       observer.disconnect();
+//     }
+//   });
 
-  observer.observe(imageDivElement);
-}
+//   observer.observe(imageDivElement);
+// }
 
-const renameButton = document.getElementById("rename-button");
+// const renameButton = document.getElementById("rename-button");
 
-function updateRenameButtonVisibility() {
-  const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
-  if (selectedCheckboxesCount === 1) {
-    makeVisibleAnimation(renameButton, 500);
-  } else {
-    makeHiddenAnimation(renameButton, 500);
-  }
-}
-renameButton.addEventListener("click", async () => {
-  const checkboxes = document.querySelectorAll(".file-checkbox:checked");
-  const selectedFiles = [];
-  let currentFolderPath = navigationStack
-    .slice(1)
-    .map((folder) => folder.name)
-    .join("/");
-  for (const checkbox of checkboxes) {
-    const listItem = checkbox.closest(".li-tile");
-    const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
-    selectedFiles.push(folderContent[fileIndex]);
-  }
-  for (const file of selectedFiles) {
-    try {
-      const fileId = file.messageId;
-      const newName = prompt("Введите новое имя файла");
-      if (newName === null) {
-        return
-      }
-      if (currentFolderPath === '') {
-        await client.editMessage("me", { message: fileId, text: currentFolderPath.concat(newName) });
-      } else {
-        await client.editMessage("me", { message: fileId, text: currentFolderPath.concat('/').concat(newName) });
-      }
-    } catch (error) {
-      console.error("Ошибка при переименовании файла:", error);
-    }
-  }
-  makeHiddenAnimation(renameButton, 500);
-  makeHiddenAnimation(moveButton, 500);
-  makeHiddenAnimation(copyButton, 500);
-  makeHiddenAnimation(acceptMoveButton, 500);
-  makeHiddenAnimation(acceptCopyButton, 500);
-  const files = await getFilesFromMeDialog();
-  const fileStructure = buildFileStructure(files);
-  navigationStack = [fileStructure, ...navigationStack.slice(1)];
-  displayFiles(navigationStack[navigationStack.length - 1]);
-});
+// function updateRenameButtonVisibility() {
+//   const selectedCheckboxesCount = document.querySelectorAll(
+//     ".file-checkbox:checked"
+//   ).length;
+//   if (selectedCheckboxesCount === 1) {
+//     makeVisibleAnimation(renameButton, 500);
+//   } else {
+//     makeHiddenAnimation(renameButton, 500);
+//   }
+// }
+// renameButton.addEventListener("click", async () => {
+//   const checkboxes = document.querySelectorAll(".file-checkbox:checked");
+//   const selectedFiles = [];
+//   let currentFolderPath = navigationStack
+//     .slice(1)
+//     .map((folder) => folder.name)
+//     .join("/");
+//   for (const checkbox of checkboxes) {
+//     const listItem = checkbox.closest(".li-tile");
+//     const fileIndex = Array.from(listItem.parentElement.children).indexOf(
+//       listItem
+//     );
+//     selectedFiles.push(folderContent[fileIndex]);
+//   }
+//   for (const file of selectedFiles) {
+//     try {
+//       const fileId = file.messageId;
+//       const newName = prompt("Введите новое имя файла");
+//       if (newName === null) {
+//         return;
+//       }
+//       if (currentFolderPath === "") {
+//         await client.editMessage("me", {
+//           message: fileId,
+//           text: currentFolderPath.concat(newName),
+//         });
+//       } else {
+//         await client.editMessage("me", {
+//           message: fileId,
+//           text: currentFolderPath.concat("/").concat(newName),
+//         });
+//       }
+//     } catch (error) {
+//       console.error("Ошибка при переименовании файла:", error);
+//     }
+//   }
+//   makeHiddenAnimation(renameButton, 500);
+//   makeHiddenAnimation(moveButton, 500);
+//   makeHiddenAnimation(copyButton, 500);
+//   makeHiddenAnimation(acceptMoveButton, 500);
+//   makeHiddenAnimation(acceptCopyButton, 500);
+//   const files = await getFilesFromMeDialog();
+//   const fileStructure = buildFileStructure(files);
+//   navigationStack = [fileStructure, ...navigationStack.slice(1)];
+//   displayFiles(navigationStack[navigationStack.length - 1]);
+// });
 
-function updateDeleteButtonVisibility() {
-  const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
-  if (selectedCheckboxesCount > 0) {
-    currentFolderName.style.removeProperty('transition');
-    makeVisibleAnimation(deleteButton, 500);
-  } else {
-    currentFolderName.style.transition = '0.2s';
+// async function updateDeleteButtonVisibility() {
+//   const selectedCheckboxesCount = document.querySelectorAll(
+//     ".file-checkbox:checked"
+//   ).length;
+//   if (selectedCheckboxesCount > 0) {
+//     currentFolderName.style.removeProperty("transition");
+//     makeVisibleAnimation(deleteButton, 500);
+//   } else {
+//     currentFolderName.style.transition = "0.2s";
 
-    makeHiddenAnimation(deleteButton, 500);
-  }
-}
+//     makeHiddenAnimation(deleteButton, 500);
+//   }
+// }
+// const deleteButton = document.getElementById("delete-button");
+// deleteButton.addEventListener("click", async () => {
+//   const checkboxes = document.querySelectorAll(".file-checkbox:checked");
+//   const currentFolder = navigationStack[navigationStack.length - 1];
+//   for (const checkbox of checkboxes) {
+//     const listItem = checkbox.closest(".li-tile");
+//     const fileIndex = Array.from(listItem.parentElement.children).indexOf(
+//       listItem
+//     );
+//     selectedFiles.push(folderContent[fileIndex]);
+//   }
+//   for (const file of selectedFiles) {
+//     try {
+//       const fileId = file.messageId;
+//       await client.deleteMessages("me", [fileId], {
+//         revoke: true,
+//       });
+//       console.log("Файл успешно удален:", file);
+//     } catch (error) {
+//       console.error("Ошибка при удалении файла:", error);
+//     }
+//     selectedFiles.length = 0;
+//   }
 
-const deleteButton = document.getElementById("delete-button");
-deleteButton.addEventListener("click", async () => {
-  const checkboxes = document.querySelectorAll(".file-checkbox:checked");
-  const currentFolder = navigationStack[navigationStack.length - 1];
-  for (const checkbox of checkboxes) {
-    const listItem = checkbox.closest(".li-tile");
-    const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
-    selectedFiles.push(folderContent[fileIndex]);
-  }
-  for (const file of selectedFiles) {
-    try {
-      const fileId = file.messageId;
-      await client.deleteMessages("me", [fileId], {
-        revoke: true,
-      });
-      console.log("Файл успешно удален:", file);
-    } catch (error) {
-      console.error("Ошибка при удалении файла:", error);
-    }
-    selectedFiles.length = 0;
-  }
+//   makeHiddenAnimation(renameButton, 500);
+//   makeHiddenAnimation(moveButton, 500);
+//   makeHiddenAnimation(acceptMoveButton, 500);
+//   makeHiddenAnimation(copyButton, 500);
+//   makeHiddenAnimation(acceptCopyButton, 500);
+//   const files = await getFilesFromMeDialog();
+//   const fileStructure = buildFileStructure(files);
+//   navigationStack = [fileStructure, ...navigationStack.slice(1)];
+//   displayFiles(navigationStack[navigationStack.length - 1]);
+// });
+// let isMouseDown = false;
+// let timer;
 
-  makeHiddenAnimation(renameButton, 500);
-  makeHiddenAnimation(moveButton, 500);
-  makeHiddenAnimation(acceptMoveButton, 500);
-  makeHiddenAnimation(copyButton, 500);
-  makeHiddenAnimation(acceptCopyButton, 500);
-  const files = await getFilesFromMeDialog();
-  const fileStructure = buildFileStructure(files);
-  navigationStack = [fileStructure, ...navigationStack.slice(1)];
-  displayFiles(navigationStack[navigationStack.length - 1]);
-});
-let isMouseDown = false;
-let timer;
+// function handleLongPress(checkbox, listItem) {
+//   checkbox.checked = !checkbox.checked;
 
+//   if (checkbox.checked) {
+//     const fileIndex = Array.from(listItem.parentElement.children).indexOf(
+//       listItem
+//     );
+//     selectedFiles.push(folderContent[fileIndex]);
+//     listItem.classList.add("selected");
+//   } else {
+//     const fileIndex = Array.from(listItem.parentElement.children).indexOf(
+//       listItem
+//     );
+//     const index = selectedFiles.findIndex(
+//       (file) => file === folderContent[fileIndex]
+//     );
+//     if (index !== -1) {
+//       selectedFiles.splice(index, 1);
+//     }
+//     listItem.classList.remove("selected");
+//   }
 
-function handleLongPress(checkbox, listItem) {
-  checkbox.checked = !checkbox.checked;
+//   updateDeleteButtonVisibility();
+//   updateMoveButtonVisibility();
+//   updateRenameButtonVisibility();
+// }
 
-  if (checkbox.checked) {
-    const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
-    selectedFiles.push(folderContent[fileIndex]);
-    listItem.classList.add("selected");
-  } else {
+// function handleStartEvent(checkbox, listItem) {
+//   isMouseDown = true;
 
-    const fileIndex = Array.from(listItem.parentElement.children).indexOf(listItem);
-    const index = selectedFiles.findIndex(file => file === folderContent[fileIndex]);
-    if (index !== -1) {
-      selectedFiles.splice(index, 1);
-    }
-    listItem.classList.remove("selected");
-  }
+//   timer = setTimeout(() => {
+//     handleLongPress(checkbox, listItem);
+//   }, 700);
+// }
 
-  updateDeleteButtonVisibility();
-  updateMoveButtonVisibility();
-  updateRenameButtonVisibility();
-}
+// function handleEndEvent() {
+//   isMouseDown = false;
 
+//   clearTimeout(timer);
+// }
 
-function handleStartEvent(checkbox, listItem) {
-  isMouseDown = true;
+// async function displayFiles(folder) {
+//   folderContent = [];
+//   fileList.innerHTML = "";
+//   const currentFolderName = document.getElementById("currentfolder");
+//   currentFolderName.textContent = folder.name;
+//   const backButton = document.getElementById("back-button");
+//   if (navigationStack.length <= 1) {
+//     backButton.style.display = "none";
+//   } else {
+//     backButton.style.display = "flex";
+//     backButton.onclick = () => {
+//       navigationStack.pop();
+//       displayFiles(navigationStack[navigationStack.length - 1]);
+//     };
+//   }
+//   const lazyLoadPromises = [];
+//   let elementIndex = 0;
 
-  timer = setTimeout(() => {
-    handleLongPress(checkbox, listItem);
-  }, 700);
-}
+//   const folders = [];
+//   const files = [];
 
-function handleEndEvent() {
-  isMouseDown = false;
+//   for (const itemName in folder.content) {
+//     const items = folder.content[itemName];
+//     if (items.type === "folder") {
+//       folders.push(items);
+//     } else if (Array.isArray(items)) {
+//       for (const item of items) {
+//         if (item.name.endsWith("NoneFile")) {
+//           continue;
+//         }
+//         files.push(item);
+//       }
+//     }
+//   }
 
+//   for (const folderItem of folders) {
+//     const listItem = document.createElement("li");
+//     listItem.className = "li-tile";
+//     const divElement = document.createElement("div");
+//     const folderTile = document.createElement("div");
+//     folderTile.className = "folder";
+//     divElement.textContent = folderItem.name;
+//     divElement.className = "file-name";
+//     listItem.appendChild(folderTile);
+//     listItem.appendChild(divElement);
+//     listItem.onclick = () => {
+//       navigationStack.push(folderItem);
+//       displayFiles(folderItem);
+//       makeHiddenAnimation(moveButton, 500);
+//       makeHiddenAnimation(copyButton, 500);
+//       makeHiddenAnimation(renameButton, 500);
+//     };
+//     folderContent.push(folderItem);
+//     fileList.appendChild(listItem);
+//   }
 
-  clearTimeout(timer);
-}
+//   for (const fileItem of files) {
+//     const listItem = document.createElement("li");
+//     listItem.className = "li-tile";
+//     const divElement = document.createElement("div");
+//     const checkbox = document.createElement("input");
+//     const filename = document.createElement("div");
+//     checkbox.type = "checkbox";
+//     checkbox.className = "file-checkbox";
+//     divElement.className = "image-tile";
+//     listItem.appendChild(divElement);
+//     divElement.addEventListener("click", () => openModal(fileItem));
 
-async function displayFiles(folder) {
-  folderContent = [];
-  fileList.innerHTML = "";
-  const currentFolderName = document.getElementById("currentfolder");
-  currentFolderName.textContent = folder.name;
-  const backButton = document.getElementById("back-button");
-  if (navigationStack.length <= 1) {
-    backButton.style.display = "none";
-  } else {
-    backButton.style.display = "flex";
-    backButton.onclick = () => {
-      navigationStack.pop();
-      displayFiles(navigationStack[navigationStack.length - 1]);
-    };
-  }
-  const lazyLoadPromises = [];
-  let elementIndex = 0;
+//     filename.textContent = fileItem.name || "Noname";
+//     filename.className = "file-name";
+//     listItem.appendChild(filename);
 
-  const folders = [];
-  const files = [];
+//     checkbox.addEventListener("change", async () => {
+//       await updateDeleteButtonVisibility();
+//       await updateMoveButtonVisibility();
+//       await updateRenameButtonVisibility();
+//     });
+//     listItem.appendChild(checkbox);
 
-  for (const itemName in folder.content) {
-    const items = folder.content[itemName];
-    if (items.type === "folder") {
-      folders.push(items);
-    } else if (Array.isArray(items)) {
-      for (const item of items) {
-        if (item.name.endsWith("NoneFile")) {
-          continue;
-        }
-        files.push(item);
-      }
-    }
-  }
+//     listItem.addEventListener("mousedown", () =>
+//       handleStartEvent(checkbox, listItem)
+//     );
+//     listItem.addEventListener("mouseup", handleEndEvent);
+//     listItem.addEventListener("touchstart", () =>
+//       handleStartEvent(checkbox, listItem)
+//     );
+//     listItem.addEventListener("touchend", handleEndEvent);
 
+//     fileList.appendChild(listItem);
+//     folderContent.push(fileItem);
+//     lazyLoadPromises.push(lazyLoadImage(divElement, fileItem));
+//   }
 
-  for (const folderItem of folders) {
-    const listItem = document.createElement("li");
-    listItem.className = "li-tile";
-    const divElement = document.createElement("div");
-    const folderTile = document.createElement("div");
-    folderTile.className = "folder";
-    divElement.textContent = folderItem.name;
-    divElement.className = "file-name";
-    listItem.appendChild(folderTile);
-    listItem.appendChild(divElement);
-    listItem.onclick = () => {
-      navigationStack.push(folderItem);
-      displayFiles(folderItem);
-      makeHiddenAnimation(moveButton, 500);
-      makeHiddenAnimation(copyButton, 500);
-      makeHiddenAnimation(renameButton, 500);
-    };
-    folderContent.push(folderItem);
-    fileList.appendChild(listItem);
-  }
+//   await Promise.all(lazyLoadPromises);
 
-  for (const fileItem of files) {
-    const listItem = document.createElement("li");
-    listItem.className = "li-tile";
-    const divElement = document.createElement("div");
-    const checkbox = document.createElement("input");
-    const filename = document.createElement("div");
-    checkbox.type = "checkbox";
-    checkbox.className = "file-checkbox";
-    divElement.className = "image-tile";
-    listItem.appendChild(divElement);
-    divElement.addEventListener("click", () => openModal(fileItem));
+//   updateDeleteButtonVisibility();
+// }
 
-    filename.textContent = fileItem.name || "Noname";
-    filename.className = "file-name";
-    listItem.appendChild(filename);
+// async function refreshFilesAndFolders() {
+//   const files = await getFilesFromMeDialog();
+//   const fileStructure = buildFileStructure(files);
 
-    checkbox.addEventListener("change", async () => {
-      await updateDeleteButtonVisibility();
-      await updateMoveButtonVisibility();
-      await updateRenameButtonVisibility();
-    });
-    listItem.appendChild(checkbox);
+//   const currentFolderPath = navigationStack
+//     .slice(1)
+//     .map((folder) => folder.name)
+//     .join("/");
 
+//   let currentFolder = fileStructure;
+//   for (const folderName of currentFolderPath.split("/")) {
+//     if (folderName && currentFolder.content[folderName]) {
+//       currentFolder = currentFolder.content[folderName];
+//     }
+//   }
 
-    listItem.addEventListener("mousedown", () => handleStartEvent(checkbox, listItem));
-    listItem.addEventListener("mouseup", handleEndEvent);
-    listItem.addEventListener("touchstart", () => handleStartEvent(checkbox, listItem));
-    listItem.addEventListener("touchend", handleEndEvent);
+//   navigationStack = [
+//     fileStructure,
+//     ...navigationStack.slice(1, -1),
+//     currentFolder,
+//   ];
+//   displayFiles(currentFolder);
+// }
+// async function uploadFile(files) {
+//   const currentFolderPath = navigationStack
+//     .slice(1)
+//     .map((folder) => folder.name)
+//     .join("/");
+//   for (const file of files) {
+//     let caption = "";
+//     if (currentFolderPath === "") {
+//       caption = currentFolderPath + file.name;
+//     } else {
+//       caption = currentFolderPath + "/" + file.name;
+//     }
 
-    fileList.appendChild(listItem);
-    folderContent.push(fileItem);
-    lazyLoadPromises.push(lazyLoadImage(divElement, fileItem));
-  }
+//     try {
+//       const arrayBuffer = await file.arrayBuffer();
+//       const toUpload = new CustomFile(file.name, file.size, "", arrayBuffer);
+//       const result = await client.sendFile("me", {
+//         file: toUpload,
+//         caption: caption,
+//         workers: 1,
+//       });
 
+//       console.log("Файл успешно загружен:", result);
+//     } catch (error) {
+//       console.error("Ошибка при загрузке файла:", error);
+//     }
+//   }
 
-  await Promise.all(lazyLoadPromises);
-
-
-  updateDeleteButtonVisibility();
-}
-
-async function refreshFilesAndFolders() {
-  const files = await getFilesFromMeDialog();
-  const fileStructure = buildFileStructure(files);
-
-  const currentFolderPath = navigationStack
-    .slice(1)
-    .map((folder) => folder.name)
-    .join("/");
-
-  let currentFolder = fileStructure;
-  for (const folderName of currentFolderPath.split("/")) {
-    if (folderName && currentFolder.content[folderName]) {
-      currentFolder = currentFolder.content[folderName];
-    }
-  }
-
-  navigationStack = [fileStructure, ...navigationStack.slice(1, -1), currentFolder];
-  displayFiles(currentFolder);
-}
-async function uploadFile(files) {
-  const currentFolderPath = navigationStack
-    .slice(1)
-    .map((folder) => folder.name)
-    .join("/");
-  for (const file of files) {
-    let caption = '';
-    if (currentFolderPath === '') {
-      caption = currentFolderPath + file.name;
-    } else {
-      caption = currentFolderPath + "/" + file.name;
-    }
-
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const toUpload = new CustomFile(file.name, file.size, "", arrayBuffer);
-      const result = await client.sendFile("me", {
-        file: toUpload,
-        caption: caption,
-        workers: 1,
-      });
-
-      console.log("Файл успешно загружен:", result);
-    } catch (error) {
-      console.error("Ошибка при загрузке файла:", error);
-    }
-  }
-
-  refreshFilesAndFolders();
-}
+//   refreshFilesAndFolders();
+// }
 async function setUserProfilePhotoAsBackground() {
-  const buffer = await client.downloadProfilePhoto('me')
+  const buffer = await client.downloadProfilePhoto("me");
 
   const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
   const fullImageUrl = "data:image/jpeg;base64," + base64;
@@ -617,137 +647,158 @@ async function setUserProfilePhotoAsBackground() {
   const userPhotoElement = document.querySelectorAll(".user-photo");
   for (const userphoto of userPhotoElement) {
     userphoto.style.backgroundImage = `url(${fullImageUrl})`;
-    if (fullImageUrl == 'data:image/jpeg;base64,') {
+    if (fullImageUrl == "data:image/jpeg;base64,") {
       userphoto.style.backgroundImage = `url(https://comhub.ru/wp-content/uploads/2018/09/dog1.png)`;
     }
   }
 }
-const moveBuffer = [];
-function updateMoveButtonVisibility() {
-  const selectedCheckboxesCount = document.querySelectorAll(".file-checkbox:checked").length;
-  if (selectedCheckboxesCount > 0) {
-    makeVisibleAnimation(moveButton, 500);
-    makeVisibleAnimation(copyButton, 500);
-  } else {
-    makeHiddenAnimation(moveButton, 500);
-    makeHiddenAnimation(copyButton, 500);
-    makeHiddenAnimation(acceptMoveButton, 500);
-    makeHiddenAnimation(acceptCopyButton, 500);
-  }
-}
-moveButton.addEventListener("click", async () => {
-  const checkboxes = document.querySelectorAll(".file-checkbox:checked");
-  const currentFolder = navigationStack[navigationStack.length - 1];
-  for (const checkbox of checkboxes) {
-    const listItem = checkbox.closest(".li-tile");
-    makeHiddenAnimation(moveButton, 500);
-    makeHiddenAnimation(copyButton, 500);
-    makeHiddenAnimation(renameButton, 500);
-    makeVisibleAnimation(acceptMoveButton, 500);
-  }
-});
+// const moveBuffer = [];
+// function updateMoveButtonVisibility() {
+//   const selectedCheckboxesCount = document.querySelectorAll(
+//     ".file-checkbox:checked"
+//   ).length;
+//   if (selectedCheckboxesCount > 0) {
+//     makeVisibleAnimation(moveButton, 500);
+//     makeVisibleAnimation(copyButton, 500);
+//   } else {
+//     makeHiddenAnimation(moveButton, 500);
+//     makeHiddenAnimation(copyButton, 500);
+//     makeHiddenAnimation(acceptMoveButton, 500);
+//     makeHiddenAnimation(acceptCopyButton, 500);
+//   }
+// }
+// moveButton.addEventListener("click", async () => {
+//   const checkboxes = document.querySelectorAll(".file-checkbox:checked");
+//   const currentFolder = navigationStack[navigationStack.length - 1];
+//   for (const checkbox of checkboxes) {
+//     const listItem = checkbox.closest(".li-tile");
+//     makeHiddenAnimation(moveButton, 500);
+//     makeHiddenAnimation(copyButton, 500);
+//     makeHiddenAnimation(renameButton, 500);
+//     makeVisibleAnimation(acceptMoveButton, 500);
+//   }
+// });
 
-copyButton.addEventListener("click", async () => {
-  const checkboxes = document.querySelectorAll(".file-checkbox:checked");
-  const currentFolder = navigationStack[navigationStack.length - 1];
-  for (const checkbox of checkboxes) {
-    const listItem = checkbox.closest(".li-tile");
-    makeHiddenAnimation(moveButton, 500);
-    makeHiddenAnimation(copyButton, 500);
-    makeHiddenAnimation(renameButton, 500);
-    makeVisibleAnimation(acceptCopyButton, 500);
-  }
-});
+// copyButton.addEventListener("click", async () => {
+//   const checkboxes = document.querySelectorAll(".file-checkbox:checked");
+//   const currentFolder = navigationStack[navigationStack.length - 1];
+//   for (const checkbox of checkboxes) {
+//     const listItem = checkbox.closest(".li-tile");
+//     makeHiddenAnimation(moveButton, 500);
+//     makeHiddenAnimation(copyButton, 500);
+//     makeHiddenAnimation(renameButton, 500);
+//     makeVisibleAnimation(acceptCopyButton, 500);
+//   }
+// });
 
-acceptMoveButton.addEventListener("click", async () => {
-  for (const file of selectedFiles) {
-    try {
-      let currentFolderPath = navigationStack
-        .slice(1)
-        .map((folder) => folder.name)
-        .join("/");
-      const fileId = file.messageId;
-      const filename = file.name;
-      if (currentFolderPath === '') {
-        await client.editMessage("me", { message: fileId, text: currentFolderPath.concat(filename) });
-      } else {
-        await client.editMessage("me", { message: fileId, text: currentFolderPath.concat('/').concat(filename) });
-      }
-      console.log('Файл перемещен');
-    } catch (error) {
-      console.error("Ошибка при перемещении файла:", error);
-    }
-  }
-  const files = await getFilesFromMeDialog();
-  const fileStructure = buildFileStructure(files);
-  navigationStack = [fileStructure, ...navigationStack.slice(1)];
-  displayFiles(navigationStack[navigationStack.length - 1]);
-  makeHiddenAnimation(acceptMoveButton, 500);
-  selectedFiles.length = 0;
-});
+// acceptMoveButton.addEventListener("click", async () => {
+//   for (const file of selectedFiles) {
+//     try {
+//       let currentFolderPath = navigationStack
+//         .slice(1)
+//         .map((folder) => folder.name)
+//         .join("/");
+//       const fileId = file.messageId;
+//       const filename = file.name;
+//       if (currentFolderPath === "") {
+//         await client.editMessage("me", {
+//           message: fileId,
+//           text: currentFolderPath.concat(filename),
+//         });
+//       } else {
+//         await client.editMessage("me", {
+//           message: fileId,
+//           text: currentFolderPath.concat("/").concat(filename),
+//         });
+//       }
+//       console.log("Файл перемещен");
+//     } catch (error) {
+//       console.error("Ошибка при перемещении файла:", error);
+//     }
+//   }
+//   const files = await getFilesFromMeDialog();
+//   const fileStructure = buildFileStructure(files);
+//   navigationStack = [fileStructure, ...navigationStack.slice(1)];
+//   displayFiles(navigationStack[navigationStack.length - 1]);
+//   makeHiddenAnimation(acceptMoveButton, 500);
+//   selectedFiles.length = 0;
+// });
 
-acceptCopyButton.addEventListener("click", async () => {
-  for (const file of selectedFiles) {
-    try {
-      let currentFolderPath = navigationStack
-        .slice(1)
-        .map((folder) => folder.name)
-        .join("/");
-      const fileId = file.messageId;
-      const filename = file.name;
-      if (currentFolderPath === '') {
-        const result = await client.sendFile("me", {
-          file: file.video || file.file,
-          caption: currentFolderPath.concat(filename),
-          workers: 1,
-        });
-      } else {
-        const result = await client.sendFile("me", {
-          file: file.video || file.file,
-          caption: currentFolderPath.concat('/').concat(filename),
-          workers: 1,
-        });
-      }
-      console.log('Файл скопирован');
-    } catch (error) {
-      console.error("Ошибка при копировании файла:", error);
-    }
-  }
-  const files = await getFilesFromMeDialog();
-  const fileStructure = buildFileStructure(files);
-  navigationStack = [fileStructure, ...navigationStack.slice(1)];
-  displayFiles(navigationStack[navigationStack.length - 1]);
-  makeHiddenAnimation(acceptCopyButton, 500);
-  selectedFiles.length = 0;
-});
-const createFolder = document.getElementById("create-folder");
-createFolder.addEventListener("click", async () => {
-  let currentFolderPath = navigationStack
-    .slice(1)
-    .map((folder) => folder.name)
-    .join("/");
-  const createFolderName = prompt("Введите имя папки");
-  if (createFolderName === null) {
-    return
-  }
-  if (currentFolderPath === '') {
-    await client.sendMessage("me", { message: "#EmptyFolder ".concat(currentFolderPath).concat(createFolderName).concat("/").concat('NoneFile') });
-  } else {
-    await client.sendMessage("me", { message: "#EmptyFolder ".concat(currentFolderPath).concat("/").concat(createFolderName).concat("/").concat('NoneFile') });
-  }
-  const files = await getFilesFromMeDialog();
-  const fileStructure = buildFileStructure(files);
-  navigationStack = [fileStructure, ...navigationStack.slice(1)];
-  displayFiles(navigationStack[navigationStack.length - 1]);
-});
+// acceptCopyButton.addEventListener("click", async () => {
+//   for (const file of selectedFiles) {
+//     try {
+//       let currentFolderPath = navigationStack
+//         .slice(1)
+//         .map((folder) => folder.name)
+//         .join("/");
+//       const fileId = file.messageId;
+//       const filename = file.name;
+//       if (currentFolderPath === "") {
+//         const result = await client.sendFile("me", {
+//           file: file.video || file.file,
+//           caption: currentFolderPath.concat(filename),
+//           workers: 1,
+//         });
+//       } else {
+//         const result = await client.sendFile("me", {
+//           file: file.video || file.file,
+//           caption: currentFolderPath.concat("/").concat(filename),
+//           workers: 1,
+//         });
+//       }
+//       console.log("Файл скопирован");
+//     } catch (error) {
+//       console.error("Ошибка при копировании файла:", error);
+//     }
+//   }
+//   const files = await getFilesFromMeDialog();
+//   const fileStructure = buildFileStructure(files);
+//   navigationStack = [fileStructure, ...navigationStack.slice(1)];
+//   displayFiles(navigationStack[navigationStack.length - 1]);
+//   makeHiddenAnimation(acceptCopyButton, 500);
+//   selectedFiles.length = 0;
+// });
+// const createFolder = document.getElementById("create-folder");
+// createFolder.addEventListener("click", async () => {
+//   let currentFolderPath = navigationStack
+//     .slice(1)
+//     .map((folder) => folder.name)
+//     .join("/");
+//   const createFolderName = prompt("Введите имя папки");
+//   if (createFolderName === null) {
+//     return;
+//   }
+//   if (currentFolderPath === "") {
+//     await client.sendMessage("me", {
+//       message: "#EmptyFolder "
+//         .concat(currentFolderPath)
+//         .concat(createFolderName)
+//         .concat("/")
+//         .concat("NoneFile"),
+//     });
+//   } else {
+//     await client.sendMessage("me", {
+//       message: "#EmptyFolder "
+//         .concat(currentFolderPath)
+//         .concat("/")
+//         .concat(createFolderName)
+//         .concat("/")
+//         .concat("NoneFile"),
+//     });
+//   }
+//   const files = await getFilesFromMeDialog();
+//   const fileStructure = buildFileStructure(files);
+//   navigationStack = [fileStructure, ...navigationStack.slice(1)];
+//   displayFiles(navigationStack[navigationStack.length - 1]);
+// });
 
 async function init() {
-  await client.connect();
-  setUserProfilePhotoAsBackground();
-  const files = await getFilesFromMeDialog();
-  const fileStructure = buildFileStructure(files);
-  navigationStack.push(fileStructure);
-  displayFiles(fileStructure);
+  // await client.connect();
+  // setUserProfilePhotoAsBackground();
+  // const files = await getFilesFromMeDialog();
+  // const fileStructure = buildFileStructure(files);
+  // navigationStack.push(fileStructure);
+  // displayFiles(fileStructure);
   const fileInput = document.getElementById("file-input");
   const uploadButton = document.getElementById("upload-button");
   const closeUploadButton = document.getElementById("close-upload-menu");
@@ -755,33 +806,36 @@ async function init() {
   const uploadMenuButton = document.getElementById("upload-menu-button");
 
   me = await client.getMe();
-  me = me.firstName
-  const userName = document.getElementById('user-name');
+  me = me.firstName;
+  const userName = document.getElementById("user-name");
   userName.textContent = `${me}`;
 
   uploadMenuButton.addEventListener("click", () => {
-    uploadMenu.style.transform = 'translate(0px, 0px)'
-    uploadMenuButton.style.transform = 'translate(0px, 300px)'
+    uploadMenu.style.transform = "translate(0px, 0px)";
+    uploadMenuButton.style.transform = "translate(0px, 300px)";
   });
 
-  var cachedSession = JSON.parse(localStorage.getItem('cachedSession'));
+  var cachedSession = JSON.parse(localStorage.getItem("cachedSession"));
   for (var key in cachedSession) {
-    var button = document.createElement('div');
-    button.classList.add('side-bar-button', 'choose-user');
+    var button = document.createElement("div");
+    button.classList.add("side-bar-button", "choose-user");
     button.textContent = key;
-    button.addEventListener('click', function (event) {
-      cachedSession[me] = localStorage.getItem('savedSession');
-      localStorage.setItem('savedSession', cachedSession[event.target.textContent]);
+    button.addEventListener("click", function (event) {
+      cachedSession[me] = localStorage.getItem("savedSession");
+      localStorage.setItem(
+        "savedSession",
+        cachedSession[event.target.textContent]
+      );
       delete cachedSession[event.target.textContent];
-      localStorage.setItem('cachedSession', JSON.stringify(cachedSession));
+      localStorage.setItem("cachedSession", JSON.stringify(cachedSession));
       location.reload();
     });
     userList.insertBefore(button, addUserButton);
   }
 
   closeUploadButton.addEventListener("click", () => {
-    uploadMenu.style.transform = 'translate(0px, 500px)'
-    uploadMenuButton.style.transform = 'translate(0px, 0px)'
+    uploadMenu.style.transform = "translate(0px, 500px)";
+    uploadMenuButton.style.transform = "translate(0px, 0px)";
   });
 
   uploadButton.addEventListener("click", () => {
@@ -800,5 +854,4 @@ async function init() {
   });
 }
 
-
-init(); 
+init();
