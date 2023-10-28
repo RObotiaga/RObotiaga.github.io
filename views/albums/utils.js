@@ -43,7 +43,7 @@ uploadMenuButton.addEventListener("click", () => {
   uploadMenuButton.style.transform = "translate(0px, 300px)";
 });
 closeUploadButton.addEventListener("click", () => {
-  uploadMenu.style.transform = "translate(0px, 500px)";
+  uploadMenu.style.transform = "translate(0px, 600px)";
   uploadMenuButton.style.transform = "translate(0px, 0px)";
 });
 uploadButton.addEventListener("click", () => {

@@ -119,7 +119,7 @@
       <button
         class="footer-button"
         id="exit-button"
-        onclick="localStorage.removeItem('savedSession'); document.location='../login.html'"
+        onclick="localStorage.removeItem('savedSession'); document.location='../login/login.html'"
       >
         <div class="footer-button-svg-exit"></div>
         <div class="footer-button-text">Выйти</div>
@@ -127,10 +127,18 @@
       <button
         class="footer-button"
         id="menu-button"
-        onclick="document.location='../photomanager.html'"
+        onclick="document.location='../photomanager/photomanager.html'"
       >
         <div class="footer-button-svg-photos"></div>
         <div class="footer-button-text">Фото</div>
+      </button>
+      <button
+        class="footer-button"
+        id="menu-button"
+        onclick="document.location='../albums/albums.html'"
+      >
+        <div class="footer-button-svg-photos"></div>
+        <div class="footer-button-text">Альбомы</div>
       </button>
     </div>
     <div id="modal" class="modal">
@@ -157,8 +165,8 @@
       </video>
     </div>
     <div id="black-screen"></div>
-    <!-- <script type="module" src="../gram.js"></script> -->
+    <script src="../bundle.js"></script>
     <script src="utils.js"></script>
-    <script src="filemanbundle.js" type="module"></script>
+    <script src="filemanagersec.js"></script>
   </body>
 </html>

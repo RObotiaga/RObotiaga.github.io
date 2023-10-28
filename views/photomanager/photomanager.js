@@ -1,9 +1,3 @@
-// Import
-const { Api, TelegramClient } = require("telegram");
-const { StringSession } = require("telegram/sessions");
-const { CustomFile } = require("telegram/client/uploads");
-const bigInt = require("big-integer");
-
 // TG client init
 
 const apiId = 26855747;
@@ -59,22 +53,27 @@ class File {
       const buffer = await client.downloadMedia(this.message, { thumb });
       return URL.createObjectURL(new Blob([buffer], { type: "image/png" }));
     } else if (this.type === "photo") {
-      const buffer = await client.downloadMedia(this.file);
+      const size = this.file.size;
+      const buffer = await client.downloadMedia(this.message, { size });
+      return URL.createObjectURL(new Blob([buffer], { type: "image/png" }));
+    } else if (this.type === "docPhoto") {
+      const [, thumb] = this.thumb;
+      const buffer = await client.downloadMedia(this.message, { thumb });
       return URL.createObjectURL(new Blob([buffer], { type: "image/png" }));
     }
   }
   async downloadFullFile() {
     if (this.type === "video") {
-      let totalSize = bigInt(0);
-      let downloadedSize = bigInt(0);
+      let totalSize = 0;
+      let downloadedSize = 0;
       const progressBar = document.getElementById("videoProgressBar");
 
       const buffer = await client.downloadMedia(this.file, {
         progressCallback: (downloaded, fullSize) => {
-          downloadedSize = bigInt(downloaded);
-          totalSize = bigInt(fullSize);
+          downloadedSize = downloaded;
+          totalSize = fullSize;
           const percentage = Number(
-            ((downloadedSize * bigInt(100)) / totalSize).toString()
+            ((downloadedSize * 100) / totalSize).toString()
           );
           progressBar.value = percentage;
         },
@@ -85,6 +84,9 @@ class File {
       return URL.createObjectURL(new Blob([buffer], { type: "video/mp4" }));
     } else if (this.type === "photo") {
       return this.getCachedImage();
+    } else if (this.type === "docPhoto") {
+      const buffer = await client.downloadMedia(this.file);
+      return URL.createObjectURL(new Blob([buffer], { type: "image/png" }));
     }
   }
   async rename(newName) {
@@ -145,6 +147,7 @@ class Folder {
 
 // Elements
 
+const userPhoto = document.getElementById("user-photo");
 const fileList = document.getElementById("file-list");
 const currentFolderName = document.getElementById("currentfolder");
 const fileInput = document.getElementById("file-input");
@@ -152,23 +155,39 @@ const modal = document.getElementById("modal");
 const modalv = document.getElementById("modalv");
 const modalImage = document.getElementById("modal-image");
 const modalVideo = document.getElementById("modal-video");
+const closeBtn = document.getElementById("close");
+const closevBtn = document.getElementById("closev");
+const prevBtn = document.querySelector(".prev");
+const nextBtn = document.querySelector(".next");
 const moveButton = document.getElementById("move-button");
 const acceptMoveButton = document.getElementById("accept-move-button");
 const copyButton = document.getElementById("copy-button");
 const acceptCopyButton = document.getElementById("accept-copy-button");
+const sideBar = document.getElementById("side-bar");
+const blackScreen = document.getElementById("black-screen");
+const userChoose = document.getElementById("user-choose");
+const userList = document.getElementById("user_list");
 const addUserButton = document.getElementById("add_user_button");
-const backButton = document.getElementById("back-button");
-const createEmptyFolder = document.getElementById("create-folder");
-const renameButton = document.getElementById("rename-button");
-const deleteButton = document.getElementById("delete-button");
-const userName = document.getElementById("user-name");
+const uploadButton = document.getElementById("upload-button");
+const closeUploadButton = document.getElementById("close-upload-menu");
+const uploadMenu = document.getElementById("upload-menu");
+const uploadMenuButton = document.getElementById("upload-menu-button");
+
+// modal window
+
+closeBtn.addEventListener("click", async () => {
+  modal.style.display = "none";
+});
+closevBtn.addEventListener("click", async () => {
+  modalVideo.pause();
+  modalv.style.display = "none";
+});
 
 // Structural functions
 
 async function getFilesFromMeDialog() {
   const mePeerId = await client.getPeerId("me");
   const messages = await client.getMessages(mePeerId);
-
   const photos = messages
     .filter(
       (message) =>
@@ -199,12 +218,29 @@ async function getFilesFromMeDialog() {
       messageId: message.id,
       thumb: message.media.document.thumbs,
     }));
+  const docPhoto = messages
+    .filter(
+      (message) =>
+        message.media instanceof Api.MessageMediaDocument &&
+        message.media.document.mimeType === "image/png"
+    )
+    .map((message) => ({
+      message,
+      type: "docPhoto",
+      file: message.media.document,
+      caption: message.message,
+      date: message.date,
+      messageId: message.id,
+      thumb: message.media.document.thumbs,
+    }));
 
-  const files = [...photos, ...videos].sort((a, b) => b.date - a.date);
+  const files = [...photos, ...videos, ...docPhoto].sort(
+    (a, b) => b.date - a.date
+  );
   return files;
 }
 function buildFileStructure(files) {
-  const root = new Folder("root");
+  const fileArray = [];
 
   for (const file of files) {
     const path = file.caption.split("/");
@@ -212,20 +248,7 @@ function buildFileStructure(files) {
       path[0] = path[0].replace("#EmptyFolder ", "");
     }
 
-    let currentFolder = root;
-
-    for (const folderName of path.slice(0, -1)) {
-      let foundFolder = currentFolder.content.find(
-        (item) => item instanceof Folder && item.name === folderName
-      );
-      if (!foundFolder) {
-        foundFolder = new Folder(folderName);
-        currentFolder.addFolder(foundFolder);
-      }
-
-      currentFolder = foundFolder;
-    }
-    if (file.caption.indexOf("#EmptyFolder")) {
+    if (!file.caption.includes("#EmptyFolder")) {
       const newFile = new File(
         file.message,
         file.type,
@@ -235,12 +258,13 @@ function buildFileStructure(files) {
         file.messageId,
         file.thumb || ""
       );
-      currentFolder.addFile(newFile);
+      fileArray.push(newFile);
     }
   }
 
-  return root;
+  return fileArray;
 }
+
 async function lazyLoadImage(divElement, item) {
   const observer = new IntersectionObserver(async (entries) => {
     if (entries[0].isIntersecting) {
@@ -263,7 +287,6 @@ async function createFileElement(item) {
   const filename = document.createElement("div");
   divElement.className = "image-tile";
   listItem.appendChild(divElement);
-  filename.textContent = item.name || "NoName";
   filename.className = "file-name";
   listItem.appendChild(filename);
   fileList.appendChild(listItem);
@@ -283,6 +306,7 @@ async function createFileElement(item) {
     updateActionButtonVisibility();
   });
 }
+
 async function createFolder(folder) {
   const listItem = document.createElement("li");
   listItem.className = "li-tile";
@@ -328,6 +352,26 @@ async function openModal(item) {
 }
 
 // Auxiliary functions
+function groupFilesByWeek(files) {
+  const groupedFiles = {};
+  for (const file of files) {
+    const fileDate = new Date(file.date * 1000);
+    const weekStartDate = getWeekStartDate(fileDate);
+    if (!groupedFiles[weekStartDate]) {
+      groupedFiles[weekStartDate] = [];
+    }
+    groupedFiles[weekStartDate].push(file);
+  }
+  return groupedFiles;
+}
+
+function getWeekStartDate(date) {
+  const dayOfWeek = date.getDay();
+  const weekStartDate = new Date(date);
+  weekStartDate.setDate(date.getDate() - dayOfWeek);
+  weekStartDate.setHours(0, 0, 0, 0);
+  return weekStartDate;
+}
 
 async function checkRootFolder() {
   if (navigationStack.length <= 1) {
@@ -465,196 +509,44 @@ async function setUserProfilePhotoAsBackground() {
   me = me.firstName;
   userName.textContent = `${me}`;
 }
-
-// File upload
-
-async function uploadFile(files) {
-  for (const file of files) {
-    let caption = "";
-    if (await checkRootFolder()) {
-      caption = getPath() + file.name;
-    } else {
-      caption = getPath() + "/" + file.name;
-    }
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const toUpload = new CustomFile(file.name, file.size, "", arrayBuffer);
-      const result = await client.sendFile("me", {
-        file: toUpload,
-        caption: caption,
-        workers: 1,
-      });
-
-      console.log("Файл успешно загружен:", result);
-    } catch (error) {
-      console.error("Ошибка при загрузке файла:", error);
-    }
-  }
-}
-fileInput.addEventListener("change", async (event) => {
-  if (event.target.files.length > 0) {
-    const file = event.target.files;
-    await uploadFile(file);
-  }
-  await updateFileStructure();
-});
-
-// File rename
-
-renameButton.addEventListener("click", async () => {
-  for (const file of selectedFiles) {
-    try {
-      const newName = prompt("Введите новое имя файла");
-      if (newName === null) {
-        return;
-      }
-      file.rename(newName);
-      selectedFiles.length = 0;
-      updateActionButtonVisibility();
-      await updateFileStructure();
-    } catch (error) {
-      console.error("Ошибка при переименовании файла:", error);
-    }
-  }
-});
-
-// File move
-
-const moveBuffer = [];
-moveButton.addEventListener("click", async () => {
-  moveBuffer.push(...selectedFiles);
-  selectedFiles.length = 0;
-  updateActionButtonVisibility();
-  makeVisibleAnimation(acceptMoveButton, 500);
-});
-acceptMoveButton.addEventListener("click", async () => {
-  for (const file of moveBuffer) {
-    try {
-      file.copyTo(getPath());
-      file.delete();
-    } catch (error) {
-      console.error("Ошибка при перемещении файла:", error);
-    }
-  }
-  makeHiddenAnimation(acceptMoveButton, 500);
-  moveBuffer.length = 0;
-  await updateFileStructure();
-});
-
-// File copy
-
-const copyBuffer = [];
-copyButton.addEventListener("click", async () => {
-  copyBuffer.push(...selectedFiles);
-  selectedFiles.length = 0;
-  updateActionButtonVisibility();
-  makeVisibleAnimation(acceptCopyButton, 500);
-});
-acceptCopyButton.addEventListener("click", async () => {
-  for (const file of copyBuffer) {
-    try {
-      file.copyTo(getPath());
-    } catch (error) {
-      console.error("Ошибка при копировании файла:", error);
-    }
-  }
-  makeHiddenAnimation(acceptCopyButton, 500);
-  copyBuffer.length = 0;
-  await updateFileStructure();
-});
-
-// File delete
-
-deleteButton.addEventListener("click", async () => {
-  for (const file of selectedFiles) {
-    try {
-      file.delete();
-    } catch (error) {
-      console.error("Ошибка при удалении файла:", error);
-    }
-  }
-  selectedFiles.length = 0;
-  updateActionButtonVisibility();
-  await updateFileStructure();
-});
-
-// Add account
-
-addUserButton.addEventListener("click", async () => {
-  const me = await client.getMe();
-
-  var savedSession = localStorage.getItem("savedSession");
-
-  var dictionary = {};
-  dictionary[me.firstName] = savedSession;
-
-  localStorage.setItem("cachedSession", JSON.stringify(dictionary));
-
-  localStorage.removeItem("savedSession");
-
-  document.location = "../login.html";
-});
-
-// Create empty folder
-
-createEmptyFolder.addEventListener("click", async () => {
-  let caption = "";
-  const createFolderName = prompt("Введите имя папки");
-  if (createFolderName === null) {
-    return;
-  }
-  if (await checkRootFolder()) {
-    caption = "#EmptyFolder "
-      .concat(getPath())
-      .concat(createFolderName)
-      .concat("/")
-      .concat("NoName");
-  } else {
-    caption = "#EmptyFolder "
-      .concat(getPath())
-      .concat("/")
-      .concat(createFolderName)
-      .concat("/")
-      .concat("NoName");
-  }
-  await client.sendMessage("me", { message: caption });
-  await updateFileStructure();
-});
-
 // Main thread
 
 async function displayFilesAndFolders(fileStructure) {
   fileList.innerHTML = "";
-  currentFolderName.textContent = fileStructure.name;
-  if (await checkRootFolder()) {
-    backButton.style.display = "none";
-  } else {
-    backButton.style.display = "flex";
-    backButton.onclick = () => {
-      navigationStack.pop();
-      selectedFiles.length = 0;
-      updateActionButtonVisibility();
-      displayFilesAndFolders(navigationStack[navigationStack.length - 1]);
-    };
-  }
-  fileStructure.content.sort(compareFilesAndFolders);
-  for (const item of fileStructure.content) {
-    if (item.type === "folder") {
-      await createFolder(item);
-    } else {
-      await createFileElement(item);
+  const groupedFiles = groupFilesByWeek(fileStructure);
+
+  for (const weekStartDate in groupedFiles) {
+    if (groupedFiles.hasOwnProperty(weekStartDate)) {
+      const filesInWeek = groupedFiles[weekStartDate];
+      const weekHeader = document.createElement("h3");
+      weekHeader.className = "time-top";
+      weekHeader.textContent = formatDate(new Date(weekStartDate));
+      fileList.appendChild(weekHeader);
+
+      for (const item of filesInWeek) {
+        if (item.type !== "folder") {
+          await createFileElement(item);
+        }
+      }
     }
   }
+
   await Promise.all(lazyLoadPromises);
 }
 
+function formatDate(date) {
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  return date.toLocaleDateString('ru-RU', options);
+}
+
+
 async function main() {
   await client.connect();
-  setUserProfilePhotoAsBackground();
   const files = await getFilesFromMeDialog();
+  files.sort((a, b) => b.date - a.date); // Сортировка файлов по дате (новые в начале)
   const fileStructure = buildFileStructure(files);
-  navigationStack.push(fileStructure);
   await displayFilesAndFolders(fileStructure);
 }
 
 main();
+

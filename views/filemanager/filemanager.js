@@ -805,33 +805,33 @@ async function init() {
   const uploadMenu = document.getElementById("upload-menu");
   const uploadMenuButton = document.getElementById("upload-menu-button");
 
-  me = await client.getMe();
-  me = me.firstName;
-  const userName = document.getElementById("user-name");
-  userName.textContent = `${me}`;
+  // me = await client.getMe();
+  // me = me.firstName;
+  // const userName = document.getElementById("user-name");
+  // userName.textContent = `${me}`;
 
   uploadMenuButton.addEventListener("click", () => {
     uploadMenu.style.transform = "translate(0px, 0px)";
     uploadMenuButton.style.transform = "translate(0px, 300px)";
   });
 
-  var cachedSession = JSON.parse(localStorage.getItem("cachedSession"));
-  for (var key in cachedSession) {
-    var button = document.createElement("div");
-    button.classList.add("side-bar-button", "choose-user");
-    button.textContent = key;
-    button.addEventListener("click", function (event) {
-      cachedSession[me] = localStorage.getItem("savedSession");
-      localStorage.setItem(
-        "savedSession",
-        cachedSession[event.target.textContent]
-      );
-      delete cachedSession[event.target.textContent];
-      localStorage.setItem("cachedSession", JSON.stringify(cachedSession));
-      location.reload();
-    });
-    userList.insertBefore(button, addUserButton);
-  }
+  // var cachedSession = JSON.parse(localStorage.getItem("cachedSession"));
+  // for (var key in cachedSession) {
+  //   var button = document.createElement("div");
+  //   button.classList.add("side-bar-button", "choose-user");
+  //   button.textContent = key;
+  //   button.addEventListener("click", function (event) {
+  //     cachedSession[me] = localStorage.getItem("savedSession");
+  //     localStorage.setItem(
+  //       "savedSession",
+  //       cachedSession[event.target.textContent]
+  //     );
+  //     delete cachedSession[event.target.textContent];
+  //     localStorage.setItem("cachedSession", JSON.stringify(cachedSession));
+  //     location.reload();
+  //   });
+  //   userList.insertBefore(button, addUserButton);
+  // }
 
   closeUploadButton.addEventListener("click", () => {
     uploadMenu.style.transform = "translate(0px, 500px)";

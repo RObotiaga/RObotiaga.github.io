@@ -27,6 +27,10 @@ html {
 .tile-container {
   list-style-type: none;
   margin-top: min(17vw, 65px);
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
 }
 
 #header {
@@ -67,6 +71,8 @@ div#user-photo-sb {
   margin-top: 40px;
   margin-left: 20px;
   margin-bottom: 10px;
+  max-width: 100px;
+  max-height: 100px
 }
 
 div#side-bar-top-block {
@@ -159,7 +165,23 @@ div#select-buttons {
   justify-content: center;
   box-sizing: border-box;
 }
-
+.album {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  width: 30vw;
+  height: 30vw;
+  max-width: 150px;
+  max-height: 150px;
+}
+.create-album, .create-photo {
+  background-color: var(--theme-color) !important;
+  -webkit-mask-image: url(../img/create_album.svg);
+  mask-image: url(../img/create_album.svg);
+  -webkit-mask-size: min(30vw, 160px);
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+}
 .footer-button {
   height: 15vw;
   width: 20vw;
@@ -177,6 +199,7 @@ div#select-buttons {
   align-items: center;
   flex-direction: column;
   cursor: pointer;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
 
 .footer-button:hover {
@@ -255,6 +278,7 @@ div#side-bar-middle-block {
   width: 65vw;
   max-width: 440px;
   max-height: 50px;
+  font-size: min(3vw,25px);
 }
 div#user-choose-menu {
   max-width: 450px;
@@ -337,7 +361,7 @@ div#user_list {
 
 .time-top {
   color: var(--theme-color);
-  width: 89vw;
+  width: 90vw;
   float: left;
   font-size: min(4vw, 16px);
   margin-left: min(2.6vw, 20px);
@@ -358,6 +382,7 @@ div#user_list {
   -o-transition-property: -o-transform;
   transition-property: transform;
   cursor: pointer;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
 
 .file-name {
@@ -412,6 +437,7 @@ div#user_list {
   transition: 0.5s;
   background-color: var(--theme-color);
   cursor: pointer;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
 
 div#close-upload-menu {
@@ -429,7 +455,7 @@ div#upload-menu {
   border: none;
   padding: 3vw;
   border-radius: 3vw 3vw 0 0;
-  transform: translate(0px, 500px);
+  transform: translate(0px, 600px);
   transition: 0.4s;
   background-color: #3a3a3a;
 }
@@ -465,6 +491,7 @@ div#upload-menu {
   cursor: pointer;
   transition-duration: 0.4s;
   -webkit-transition-duration: 0.4s;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
 
 .upload-menu-buttons:hover {

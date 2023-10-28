@@ -1,6 +1,3 @@
-const { Api, TelegramClient } = require("telegram");
-const { StringSession } = require("telegram/sessions");
-
 // Initialize variables
 let phoneNumber; // User's phone number
 let codeNumber; // Code entered by the user
@@ -65,7 +62,7 @@ async function loginWithQRCode() {
   const sessionString = client.session.save();
   localStorage.setItem("savedSession", sessionString);
   await client.sendMessage("me", { message: "You are logged in TeleDisk!" });
-  window.location.href = "photomanager.html";
+  window.location.href = "../photomanager/photomanager.html";
 }
 
 // Asynchronous function for logging in to Telegram
@@ -82,7 +79,7 @@ async function loginTelegram() {
   const sessionString = client.session.save();
   localStorage.setItem("savedSession", sessionString);
   await client.sendMessage("me", { message: "You are logged in TeleDisk!" });
-  window.location.href = "photomanager.html";
+  window.location.href = "../photomanager/photomanager.html";
 }
 
 // Asynchronous function to show code input field
@@ -103,7 +100,6 @@ async function showCodeInput() {
         currentNumber: true,
         allowAppHash: true,
         allowMissedCall: true,
-        logoutTokens: [Buffer.from("arbitrary data here")],
       }),
     })
   );
@@ -136,7 +132,7 @@ if (localStorage.getItem("cachedSession")) {
       );
       delete cachedSession[event.target.textContent];
       localStorage.setItem("cachedSession", JSON.stringify(cachedSession));
-      window.location.href = "photomanager.html";
+      window.location.href = "../photomanager/photomanager.html";
     });
 
     // // Добавление кнопки в начало user_list
@@ -159,7 +155,7 @@ async function init() {
 
     try {
       await client.getMe();
-      window.location.href = "photomanager.html";
+      window.location.href = "../photomanager/photomanager.html";
     } catch (error) {
       localStorage.removeItem("savedSession");
     }

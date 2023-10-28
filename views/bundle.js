@@ -30556,7 +30556,7 @@ var Mutex = /** @class */ (function () {
 }());
 exports.default = Mutex;
 
-},{"./Semaphore":221,"tslib":393}],221:[function(require,module,exports){
+},{"./Semaphore":221,"tslib":394}],221:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var tslib_1 = require("tslib");
@@ -30660,7 +30660,7 @@ var Semaphore = /** @class */ (function () {
 }());
 exports.default = Semaphore;
 
-},{"./errors":222,"tslib":393}],222:[function(require,module,exports){
+},{"./errors":222,"tslib":394}],222:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.E_CANCELED = exports.E_ALREADY_LOCKED = exports.E_TIMEOUT = void 0;
@@ -30683,7 +30683,7 @@ var tryAcquire_1 = require("./tryAcquire");
 Object.defineProperty(exports, "tryAcquire", { enumerable: true, get: function () { return tryAcquire_1.tryAcquire; } });
 (0, tslib_1.__exportStar)(require("./errors"), exports);
 
-},{"./Mutex":220,"./Semaphore":221,"./errors":222,"./tryAcquire":224,"./withTimeout":225,"tslib":393}],224:[function(require,module,exports){
+},{"./Mutex":220,"./Semaphore":221,"./errors":222,"./tryAcquire":224,"./withTimeout":225,"tslib":394}],224:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.tryAcquire = void 0;
@@ -30789,7 +30789,7 @@ function withTimeout(sync, timeout, timeoutError) {
 }
 exports.withTimeout = withTimeout;
 
-},{"./errors":222,"tslib":393}],226:[function(require,module,exports){
+},{"./errors":222,"tslib":394}],226:[function(require,module,exports){
 var bigInt = (function (undefined) {
     "use strict";
 
@@ -38123,7 +38123,7 @@ module.exports = {"application/andrew-inset":["ez"],"application/applixware":["a
 }).call(this);
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":176,"events":109,"fs":1,"path":169,"write-file-atomic":397}],264:[function(require,module,exports){
+},{"_process":176,"events":109,"fs":1,"path":169,"write-file-atomic":398}],264:[function(require,module,exports){
 // Top level file is just a mixin of submodules & constants
 'use strict';
 
@@ -44993,284 +44993,6 @@ function ZStream() {
 module.exports = ZStream;
 
 },{}],280:[function(require,module,exports){
-'use strict';
-
-/**
- * If canceled, a [[`CancellablePromise`]] should throw an `Cancellation` object.
- */
-class Cancellation extends Error {
-    constructor(message = 'Promise canceled.') {
-        super(message);
-    }
-}
-
-/** @internal */
-const noop = () => { };
-
-/**
- * Determines if an arbitrary value is a thenable with a cancel method.
- */
-function isPromiseWithCancel(value) {
-    return (typeof value === 'object' &&
-        typeof value.then === 'function' &&
-        typeof value.cancel === 'function');
-}
-/**
- * A promise with a `cancel` method.
- *
- * If canceled, the `CancellablePromise` will reject with a [[`Cancellation`]]
- * object.
- *
- * @typeParam T what the `CancellablePromise` resolves to
- */
-class CancellablePromise {
-    /**
-     * @param promise a normal promise or thenable
-     * @param cancel a function that cancels `promise`. **Calling `cancel` after
-     * `promise` has resolved must be a no-op.**
-     */
-    constructor(promise, cancel) {
-        this.promise = Promise.resolve(promise);
-        this.cancel = cancel;
-    }
-    /**
-     * Analogous to `Promise.then`.
-     *
-     * `onFulfilled` on `onRejected` can return a value, a normal promise, or a
-     * `CancellablePromise`. So you can make a chain a `CancellablePromise`s
-     * like this:
-     *
-     * ```
-     * const overallPromise = cancellableAsyncFunction1()
-     *     .then(cancellableAsyncFunction2)
-     *     .then(cancellableAsyncFunction3)
-     *     .then(cancellableAsyncFunction4)
-     * ```
-     *
-     * Then if you call `overallPromise.cancel`, `cancel` is called on all
-     * `CancellablePromise`s in the chain! In practice, this means that
-     * whichever async operation is in progress will be canceled.
-     *
-     * @returns a new CancellablePromise
-     */
-    then(onFulfilled, onRejected) {
-        let fulfill;
-        let reject;
-        let callbackPromiseWithCancel;
-        if (onFulfilled) {
-            fulfill = (value) => {
-                const nextValue = onFulfilled(value);
-                if (isPromiseWithCancel(nextValue))
-                    callbackPromiseWithCancel = nextValue;
-                return nextValue;
-            };
-        }
-        if (onRejected) {
-            reject = (reason) => {
-                const nextValue = onRejected(reason);
-                if (isPromiseWithCancel(nextValue))
-                    callbackPromiseWithCancel = nextValue;
-                return nextValue;
-            };
-        }
-        const newPromise = this.promise.then(fulfill, reject);
-        const newCancel = () => {
-            this.cancel();
-            callbackPromiseWithCancel === null || callbackPromiseWithCancel === void 0 ? void 0 : callbackPromiseWithCancel.cancel();
-        };
-        return new CancellablePromise(newPromise, newCancel);
-    }
-    /* eslint-disable @typescript-eslint/no-explicit-any -- to match the types used for Promise in the official lib.d.ts */
-    /**
-     * Analogous to `Promise.catch`.
-     */
-    catch(onRejected) {
-        return this.then(undefined, onRejected);
-    }
-    /* eslint-enable @typescript-eslint/no-explicit-any */
-    /**
-     * Attaches a callback that is invoked when the Promise is settled
-     * (fulfilled or rejected). The resolved value cannot be modified from the
-     * callback.
-     * @param onFinally The callback to execute when the Promise is settled
-     * (fulfilled or rejected).
-     * @returns A Promise for the completion of the callback.
-     */
-    finally(onFinally) {
-        return new CancellablePromise(this.promise.finally(onFinally), this.cancel);
-    }
-    /**
-     * This is necessary to make `CancellablePromise` assignable to `Promise`.
-     */
-    // eslint-disable-next-line class-methods-use-this
-    get [Symbol.toStringTag]() {
-        return 'CancellablePromise';
-    }
-    static resolve(value) {
-        return new CancellablePromise(Promise.resolve(value), noop);
-    }
-    /**
-     * Analogous to `Promise.reject`.
-     *
-     * Like `CancellablePromise.resolve`, canceling the returned
-     * `CancellablePromise` is a no-op.
-     *
-     * @param reason this should probably be an `Error` object
-     */
-    static reject(reason) {
-        return new CancellablePromise(Promise.reject(reason), noop);
-    }
-    /**
-     * Analogous to `Promise.all`.
-     *
-     * @param values an array that may contain `CancellablePromise`s, promises,
-     * thenables, and resolved values
-     * @returns a [[`CancellablePromise`]], which, if canceled, will cancel each
-     * of the promises passed in to `CancellablePromise.all`.
-     */
-    static all(values) {
-        return new CancellablePromise(Promise.all(values), () => {
-            for (const value of values) {
-                if (isPromiseWithCancel(value))
-                    value.cancel();
-            }
-        });
-    }
-    static allSettled(values) {
-        const cancel = () => {
-            for (const value of values) {
-                if (isPromiseWithCancel(value)) {
-                    value.cancel();
-                }
-            }
-        };
-        return new CancellablePromise(Promise.allSettled(values), cancel);
-    }
-    /**
-     * Creates a `CancellablePromise` that is resolved or rejected when any of
-     * the provided `Promises` are resolved or rejected.
-     * @param values An array of `Promises`.
-     * @returns A new `CancellablePromise`. Canceling it cancels all of the input
-     * promises.
-     */
-    static race(values) {
-        const cancel = () => {
-            for (const value of values) {
-                if (isPromiseWithCancel(value)) {
-                    value.cancel();
-                }
-            }
-        };
-        return new CancellablePromise(Promise.race(values), cancel);
-    }
-    // Promise.any is an ES2021 feature. Not yet implemented.
-    // /**
-    //  * The any function returns a `CancellablePromise` that is fulfilled by the
-    //  * first given promise to be fulfilled, or rejected with an `AggregateError`
-    //  * containing an array of rejection reasons if all of the given promises are
-    //  * rejected. It resolves all elements of the passed iterable to promises as
-    //  * it runs this algorithm.
-    //  * @param values An array or iterable of Promises.
-    //  * @returns A new `CancellablePromise`.
-    //  */
-    // any<T>(values: (T | PromiseLike<T>)[] | Iterable<T | PromiseLike<T>>): CancellablePromise<T> {
-    //     return new CancellablePromise(Promise.any(values), cancel))
-    // }
-    /**
-     * @returns a `CancellablePromise` that resolves after `ms` milliseconds.
-     */
-    static delay(ms) {
-        let timer;
-        let rejectFn = noop;
-        const promise = new Promise((resolve, reject) => {
-            timer = setTimeout(() => {
-                resolve();
-                rejectFn = noop;
-            }, ms);
-            rejectFn = reject;
-        });
-        return new CancellablePromise(promise, () => {
-            if (timer)
-                clearTimeout(timer);
-            rejectFn(new Cancellation());
-        });
-    }
-}
-
-/**
- * Takes in a regular `Promise` and returns a `CancellablePromise`. If canceled,
- * the `CancellablePromise` will immediately reject with a `Cancellation`, but the asynchronous
- * operation will not truly be aborted.
- *
- * Analogous to
- * [make-cancellable-promise](https://www.npmjs.com/package/make-cancellable-promise).
- */
-function pseudoCancellable(promise) {
-    let canceled = false;
-    let rejectFn = noop;
-    const newPromise = new Promise((resolve, reject) => {
-        rejectFn = reject;
-        // eslint-disable-next-line promise/catch-or-return -- no catch method on PromiseLike
-        promise.then((result) => {
-            if (!canceled) {
-                resolve(result);
-                rejectFn = noop;
-            }
-            return undefined;
-        }, (e) => {
-            if (!canceled)
-                reject(e);
-        });
-    });
-    function cancel() {
-        canceled = true;
-        rejectFn(new Cancellation());
-    }
-    return new CancellablePromise(newPromise, cancel);
-}
-/**
- * Used to build a single [[`CancellablePromise`]] from a multi-step asynchronous
- * flow.
- *
- * When the overall promise is canceled, each captured promise is canceled. In practice,
- * this means the active asynchronous operation is canceled.
- *
- * ```
- * function query(id: number): CancellablePromise<QueryResult> {
- *     return buildCancellablePromise(async capture => {
- *         const result1 = await capture(api.method1(id))
- *
- *         // do some stuff
- *
- *         const result2 = await capture(api.method2(result1.id))
- *
- *         return { result1, result2 }
- *     })
- * }
- * ```
- *
- * @param innerFunc an async function that takes in a `capture` function and returns
- * a regular `Promise`
- */
-function buildCancellablePromise(innerFunc) {
-    const capturedPromises = [];
-    const capture = (promise) => {
-        capturedPromises.push(promise);
-        return promise;
-    };
-    function cancel() {
-        capturedPromises.forEach((p) => p.cancel());
-    }
-    return new CancellablePromise(innerFunc(capture), cancel);
-}
-
-exports.CancellablePromise = CancellablePromise;
-exports.Cancellation = Cancellation;
-exports.buildCancellablePromise = buildCancellablePromise;
-exports.isPromiseWithCancel = isPromiseWithCancel;
-exports.pseudoCancellable = pseudoCancellable;
-
-},{}],281:[function(require,module,exports){
 (function (process){(function (){
 
 /*
@@ -45328,7 +45050,7 @@ function asyncMap () {
 }
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":176}],282:[function(require,module,exports){
+},{"_process":176}],281:[function(require,module,exports){
 module.exports = bindActor
 function bindActor () {
   var args = 
@@ -45346,7 +45068,7 @@ function bindActor () {
     fn.apply(obj, args.concat(cb)) }
 }
 
-},{}],283:[function(require,module,exports){
+},{}],282:[function(require,module,exports){
 module.exports = chain
 var bindActor = require("./bind-actor.js")
 chain.first = {} ; chain.last = {}
@@ -45368,12 +45090,12 @@ function chain (things, cb) {
     })
   })(0, things.length) }
 
-},{"./bind-actor.js":282}],284:[function(require,module,exports){
+},{"./bind-actor.js":281}],283:[function(require,module,exports){
 exports.asyncMap = require("./async-map")
 exports.bindActor = require("./bind-actor")
 exports.chain = require("./chain")
 
-},{"./async-map":281,"./bind-actor":282,"./chain":283}],285:[function(require,module,exports){
+},{"./async-map":280,"./bind-actor":281,"./chain":282}],284:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -46609,7 +46331,7 @@ class SmartBuffer {
 exports.SmartBuffer = SmartBuffer;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./utils":286,"buffer":69}],286:[function(require,module,exports){
+},{"./utils":285,"buffer":69}],285:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const buffer_1 = require("buffer");
@@ -46718,7 +46440,7 @@ function bigIntAndBufferInt64Check(bufferMethod) {
 }
 exports.bigIntAndBufferInt64Check = bigIntAndBufferInt64Check;
 
-},{"buffer":69}],287:[function(require,module,exports){
+},{"buffer":69}],286:[function(require,module,exports){
 (function (Buffer,setImmediate){(function (){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -47514,7 +47236,7 @@ class SocksClient extends events_1.EventEmitter {
 exports.SocksClient = SocksClient;
 
 }).call(this)}).call(this,require("buffer").Buffer,require("timers").setImmediate)
-},{"../common/constants":288,"../common/helpers":289,"../common/receivebuffer":290,"../common/util":291,"buffer":69,"events":109,"ip":258,"net":1,"smart-buffer":285,"timers":213}],288:[function(require,module,exports){
+},{"../common/constants":287,"../common/helpers":288,"../common/receivebuffer":289,"../common/util":290,"buffer":69,"events":109,"ip":258,"net":1,"smart-buffer":284,"timers":213}],287:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SOCKS5_NO_ACCEPTABLE_AUTH = exports.SOCKS5_CUSTOM_AUTH_END = exports.SOCKS5_CUSTOM_AUTH_START = exports.SOCKS_INCOMING_PACKET_SIZES = exports.SocksClientState = exports.Socks5Response = exports.Socks5HostType = exports.Socks5Auth = exports.Socks4Response = exports.SocksCommand = exports.ERRORS = exports.DEFAULT_TIMEOUT = void 0;
@@ -47629,7 +47351,7 @@ var SocksClientState;
 })(SocksClientState || (SocksClientState = {}));
 exports.SocksClientState = SocksClientState;
 
-},{}],289:[function(require,module,exports){
+},{}],288:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.validateSocksClientChainOptions = exports.validateSocksClientOptions = void 0;
@@ -47758,7 +47480,7 @@ function isValidTimeoutValue(value) {
     return typeof value === 'number' && value > 0;
 }
 
-},{"./constants":288,"./util":291,"stream":197}],290:[function(require,module,exports){
+},{"./constants":287,"./util":290,"stream":197}],289:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -47804,7 +47526,7 @@ class ReceiveBuffer {
 exports.ReceiveBuffer = ReceiveBuffer;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"buffer":69}],291:[function(require,module,exports){
+},{"buffer":69}],290:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.shuffleArray = exports.SocksClientError = void 0;
@@ -47830,7 +47552,7 @@ function shuffleArray(array) {
 }
 exports.shuffleArray = shuffleArray;
 
-},{}],292:[function(require,module,exports){
+},{}],291:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -47849,7 +47571,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./client/socksclient"), exports);
 
-},{"./client/socksclient":287}],293:[function(require,module,exports){
+},{"./client/socksclient":286}],292:[function(require,module,exports){
 /*! store2 - v2.14.2 - 2022-07-18
 * Copyright (c) 2022 Nathan Bubna; Licensed (MIT OR GPL-3.0) */
 ;(function(window, define) {
@@ -48134,7 +47856,7 @@ __exportStar(require("./client/socksclient"), exports);
 
 })(this, this && this.define);
 
-},{}],294:[function(require,module,exports){
+},{}],293:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -48163,7 +47885,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const crypto = __importStar(require("crypto"));
 exports.default = crypto;
 
-},{"crypto":80}],295:[function(require,module,exports){
+},{"crypto":80}],294:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -48649,7 +48371,7 @@ function _entityType(entity) {
 exports._entityType = _entityType;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./CryptoFile":294,"big-integer":226,"buffer":69}],296:[function(require,module,exports){
+},{"./CryptoFile":293,"big-integer":226,"buffer":69}],295:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -48924,7 +48646,7 @@ async function computeCheck(request, password) {
 exports.computeCheck = computeCheck;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./CryptoFile":294,"./Helpers":295,"./tl":389,"big-integer":226,"buffer":69}],297:[function(require,module,exports){
+},{"./CryptoFile":293,"./Helpers":294,"./tl":390,"big-integer":226,"buffer":69}],296:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -50165,13 +49887,13 @@ export function  isListLike(item) {
 */
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./Helpers":295,"./extensions/html":341,"./extensions/markdown":343,"./tl":389,"big-integer":226,"buffer":69,"mime":260}],298:[function(require,module,exports){
+},{"./Helpers":294,"./extensions/html":342,"./extensions/markdown":344,"./tl":390,"big-integer":226,"buffer":69,"mime":260}],297:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.version = void 0;
-exports.version = "2.17.0";
+exports.version = "2.18.25";
 
-},{}],299:[function(require,module,exports){
+},{}],298:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -50284,7 +50006,7 @@ async function updateTwoFaSettings(client, { isCheckPassword, currentPassword, n
 exports.updateTwoFaSettings = updateTwoFaSettings;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../Helpers":295,"../Password":296,"../index":346,"../tl":389,"buffer":69}],300:[function(require,module,exports){
+},{"../Helpers":294,"../Password":295,"../index":347,"../tl":390,"buffer":69}],299:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -50603,7 +50325,7 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
      * @param inlineOnly - Whether the buttons **must** be inline buttons only or not.
      * @example
      * ```ts
-     * import {Button} from "telegram";
+     * import {Button} from "telegram/tl/custom/button";
      *  // PS this function is not async
      * const markup = client.buildReplyMarkup(Button.inline("Hello!"));
      *
@@ -51130,6 +50852,7 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
      * @return {@link Api.InputFileBig} if the file size is larger than 10mb otherwise {@link Api.InputFile}
      * @example
      * ```ts
+     * import { CustomFile } from "telegram/client/uploads";
      * const toUpload = new CustomFile("photo.jpg", fs.statSync("../photo.jpg").size, "../photo.jpg");
      * const file = await client.uploadFile({
      *  file: toUpload,
@@ -51192,7 +50915,7 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
      * Generally this should only be used when there isn't a friendly method that does what you need.<br/>
      * All available requests and types are found under the `Api.` namespace.
      * @param request - The request to send. this should be of type request.
-     * @param sender - Optional sender to use to send the requests. defaults to main sender.
+     * @param dcId - Optional dc id to use when sending.
      * @return The response from Telegram.
      * @example
      * ```ts
@@ -51204,8 +50927,11 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
      *
      * ```
      */
-    invoke(request, sender) {
-        return userMethods.invoke(this, request, sender);
+    invoke(request, dcId) {
+        return userMethods.invoke(this, request, dcId);
+    }
+    invokeWithSender(request, sender) {
+        return userMethods.invoke(this, request, undefined, sender);
     }
     /**
      * Gets the current logged in {@link Api.User}.
@@ -51314,8 +51040,9 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
     //endregion
     /** @hidden */
     async _handleReconnect() {
+        this._log.info("Handling reconnect!");
         try {
-            await this.getMe();
+            const res = await this.getMe();
         }
         catch (e) {
             this._log.error(`Error while trying to reconnect`);
@@ -51352,7 +51079,11 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
             socket: this.networkSocket,
             testServers: this.testServers,
         });
-        if (!(await this._sender.connect(connection))) {
+        if (!(await this._sender.connect(connection, false))) {
+            if (!this._loopStarted) {
+                (0, updates_1._updateLoop)(this);
+                this._loopStarted = true;
+            }
             return;
         }
         this.session.setAuthKey(this._sender.authKey);
@@ -51363,7 +51094,12 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
             layer: AllTLObjects_1.LAYER,
             query: this._initRequest,
         }));
-        (0, updates_1._updateLoop)(this);
+        if (!this._loopStarted) {
+            (0, updates_1._updateLoop)(this);
+            this._loopStarted = true;
+        }
+        this._connectedDeferred.resolve();
+        this._isSwitchingDc = false;
     }
     //endregion
     // region Working with different connections/Data Centers
@@ -51377,7 +51113,9 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
         await this._sender.authKey.setKey(undefined);
         this.session.setAuthKey(undefined);
         this.session.save();
+        this._isSwitchingDc = true;
         await this._disconnect();
+        this._sender = undefined;
         return await this.connect();
     }
     /**
@@ -51462,7 +51200,7 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
 }
 exports.TelegramClient = TelegramClient;
 
-},{"../Helpers":295,"../Utils":297,"../events":333,"../extensions/Logger":337,"../inspect":347,"../network":359,"../platform":360,"../tl":389,"../tl/AllTLObjects":368,"./2fa":299,"./auth":301,"./bots":302,"./buttons":303,"./chats":304,"./dialogs":305,"./downloads":306,"./messageParse":309,"./messages":310,"./telegramBaseClient":313,"./updates":314,"./uploads":315,"./users":316}],301:[function(require,module,exports){
+},{"../Helpers":294,"../Utils":296,"../events":332,"../extensions/Logger":337,"../inspect":348,"../network":360,"../platform":361,"../tl":390,"../tl/AllTLObjects":369,"./2fa":298,"./auth":300,"./bots":301,"./buttons":302,"./chats":303,"./dialogs":304,"./downloads":305,"./messageParse":308,"./messages":309,"./telegramBaseClient":312,"./updates":313,"./uploads":314,"./users":315}],300:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -51831,7 +51569,7 @@ async function _authFlow(client, apiCredentials, authParams) {
 }
 exports._authFlow = _authFlow;
 
-},{"../Helpers":295,"../Password":296,"../Utils":297,"../tl":389}],302:[function(require,module,exports){
+},{"../Helpers":294,"../Password":295,"../Utils":296,"../tl":390}],301:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.inlineQuery = void 0;
@@ -51857,7 +51595,7 @@ async function inlineQuery(client, bot, query, entity, offset, geoPoint) {
 }
 exports.inlineQuery = inlineQuery;
 
-},{"../tl":389,"../tl/custom/inlineResults":384}],303:[function(require,module,exports){
+},{"../tl":390,"../tl/custom/inlineResults":385}],302:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildReplyMarkup = void 0;
@@ -51946,7 +51684,7 @@ function buildReplyMarkup(buttons, inlineOnly = false) {
 }
 exports.buildReplyMarkup = buildReplyMarkup;
 
-},{"../Helpers":295,"../tl":389,"../tl/custom/button":376,"../tl/custom/messageButton":386}],304:[function(require,module,exports){
+},{"../Helpers":294,"../tl":390,"../tl/custom/button":377,"../tl/custom/messageButton":387}],303:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -52252,7 +51990,7 @@ async function getParticipants(client, entity, params) {
 }
 exports.getParticipants = getParticipants;
 
-},{"../":346,"../Helpers":295,"../inspect":347,"../requestIter":361,"../tl":389,"big-integer":226}],305:[function(require,module,exports){
+},{"../":347,"../Helpers":294,"../inspect":348,"../requestIter":362,"../tl":390,"big-integer":226}],304:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -52340,10 +52078,13 @@ class _DialogsIter extends requestIter_1.RequestIter {
         for (const m of r.messages) {
             let message = m;
             try {
-                // todo make sure this never fails
-                message._finishInit(this.client, entities, undefined);
+                if (message && "_finishInit" in message) {
+                    // todo make sure this never fails
+                    message._finishInit(this.client, entities, undefined);
+                }
             }
             catch (e) {
+                console.log("msg", message);
                 this.client._log.error("Got error while trying to finish init message with id " +
                     m.id);
                 if (this.client._log.canSend(Logger_1.LogLevel.ERROR)) {
@@ -52421,7 +52162,7 @@ async function getDialogs(client, params) {
 }
 exports.getDialogs = getDialogs;
 
-},{"../extensions/Logger":337,"../index":346,"../requestIter":361,"../tl":389,"../tl/custom/dialog":378,"big-integer":226}],306:[function(require,module,exports){
+},{"../extensions/Logger":337,"../index":347,"../requestIter":362,"../tl":390,"../tl/custom/dialog":379,"big-integer":226}],305:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -52515,7 +52256,7 @@ class DirectDownloadIter extends requestIter_1.RequestIter {
     async _request() {
         try {
             this._sender = await this.client.getSender(this._sender.dcId);
-            const result = await this.client.invoke(this.request, this._sender);
+            const result = await this.client.invokeWithSender(this.request, this._sender);
             this._timedOut = false;
             if (result instanceof tl_1.Api.upload.FileCdnRedirect) {
                 throw new Error("CDN Not supported. Please Add an issue in github");
@@ -53027,7 +52768,7 @@ async function downloadProfilePhoto(client, entity, fileParams) {
 exports.downloadProfilePhoto = downloadProfilePhoto;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../":346,"../Helpers":295,"../Utils":297,"../errors":329,"../extensions":342,"../requestIter":361,"../tl":389,"./fs":307,"./path":312,"big-integer":226,"buffer":69}],307:[function(require,module,exports){
+},{"../":347,"../Helpers":294,"../Utils":296,"../errors":328,"../extensions":343,"../requestIter":362,"../tl":390,"./fs":306,"./path":311,"big-integer":226,"buffer":69}],306:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -53046,7 +52787,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("fs"), exports);
 
-},{"fs":25}],308:[function(require,module,exports){
+},{"fs":25}],307:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -53102,7 +52843,7 @@ exports.uploads = uploads;
 const users = __importStar(require("./users"));
 exports.users = users;
 
-},{"./2fa":299,"./TelegramClient":300,"./auth":301,"./bots":302,"./buttons":303,"./chats":304,"./dialogs":305,"./downloads":306,"./messageParse":309,"./messages":310,"./telegramBaseClient":313,"./updates":314,"./uploads":315,"./users":316}],309:[function(require,module,exports){
+},{"./2fa":298,"./TelegramClient":299,"./auth":300,"./bots":301,"./buttons":302,"./chats":303,"./dialogs":304,"./downloads":305,"./messageParse":308,"./messages":309,"./telegramBaseClient":312,"./updates":313,"./uploads":314,"./users":315}],308:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -53295,7 +53036,7 @@ function _getResponseMessage(client, request, result, inputChat) {
 }
 exports._getResponseMessage = _getResponseMessage;
 
-},{"../Helpers":295,"../Utils":297,"../index":346,"../tl/api":369,"big-integer":226}],310:[function(require,module,exports){
+},{"../Helpers":294,"../Utils":296,"../index":347,"../tl/api":370,"big-integer":226}],309:[function(require,module,exports){
 "use strict";
 var __asyncValues = (this && this.__asyncValues) || function (o) {
     if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
@@ -53768,6 +53509,13 @@ entity,
         replyTo = discussionData.replyTo;
     }
     let markup, request;
+    let replyObject = undefined;
+    if (replyTo != undefined) {
+        replyObject = new tl_1.Api.InputReplyToMessage({
+            replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
+            topMsgId: (0, Utils_1.getMessageId)(topMsgId),
+        });
+    }
     if (message && message instanceof tl_1.Api.Message) {
         if (buttons == undefined) {
             markup = message.replyMarkup;
@@ -53794,8 +53542,7 @@ entity,
             peer: entity,
             message: message.message || "",
             silent: silent,
-            replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
-            topMsgId: (0, Utils_1.getMessageId)(topMsgId),
+            replyTo: replyObject,
             replyMarkup: markup,
             entities: message.entities,
             clearDraft: clearDraft,
@@ -53817,7 +53564,7 @@ entity,
             message: message.toString(),
             entities: formattingEntities,
             noWebpage: !linkPreview,
-            replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
+            replyTo: replyObject,
             clearDraft: clearDraft,
             silent: silent,
             replyMarkup: client.buildReplyMarkup(buttons),
@@ -54095,7 +53842,7 @@ async function getCommentData(client, entity, message) {
 exports.getCommentData = getCommentData;
 // TODO do the rest
 
-},{"../":346,"../Helpers":295,"../Utils":297,"../requestIter":361,"../tl":389,"./messageParse":309,"./uploads":315,"./users":316,"big-integer":226}],311:[function(require,module,exports){
+},{"../":347,"../Helpers":294,"../Utils":296,"../requestIter":362,"../tl":390,"./messageParse":308,"./uploads":314,"./users":315,"big-integer":226}],310:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -54124,7 +53871,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const os = __importStar(require("os"));
 exports.default = os;
 
-},{"os":163}],312:[function(require,module,exports){
+},{"os":163}],311:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -54133,7 +53880,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const path_1 = __importDefault(require("path"));
 exports.default = path_1.default;
 
-},{"path":169}],313:[function(require,module,exports){
+},{"path":169}],312:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -54155,6 +53902,7 @@ const TCPMTProxy_1 = require("../network/connection/TCPMTProxy");
 const async_mutex_1 = require("async-mutex");
 const Logger_1 = require("../extensions/Logger");
 const platform_1 = require("../platform");
+const Deferred_1 = __importDefault(require("../extensions/Deferred"));
 const EXPORTED_SENDER_RECONNECT_TIMEOUT = 1000; // 1 sec
 const EXPORTED_SENDER_RELEASE_TIMEOUT = 30000; // 30 sec
 const DEFAULT_DC_ID = 4;
@@ -54262,6 +54010,8 @@ class TelegramBaseClient {
         this._loopStarted = false;
         this._reconnecting = false;
         this._destroyed = false;
+        this._isSwitchingDc = false;
+        this._connectedDeferred = new Deferred_1.default();
         // parse mode
         this._parseMode = markdown_1.MarkdownParser;
     }
@@ -54290,17 +54040,25 @@ class TelegramBaseClient {
     }
     async disconnect() {
         await this._disconnect();
-        await Promise.all(Object.values(this._exportedSenderPromises).map((promise) => {
-            return (promise &&
-                promise.then((sender) => {
-                    if (sender) {
-                        return sender.disconnect();
-                    }
-                    return undefined;
-                }));
-        }));
-        this._exportedSenderPromises = new Map();
-        // TODO cancel hanging promises
+        await Promise.all(Object.values(this._exportedSenderPromises)
+            .map((promises) => {
+            return Object.values(promises).map((promise) => {
+                return (promise &&
+                    promise.then((sender) => {
+                        if (sender) {
+                            return sender.disconnect();
+                        }
+                        return undefined;
+                    }));
+            });
+        })
+            .flat());
+        Object.values(this._exportedSenderReleaseTimeouts).forEach((timeouts) => {
+            Object.values(timeouts).forEach((releaseTimeout) => {
+                clearTimeout(releaseTimeout);
+            });
+        });
+        this._exportedSenderPromises.clear();
     }
     get disconnected() {
         return !this._sender || this._sender._disconnected;
@@ -54351,7 +54109,7 @@ class TelegramBaseClient {
                     proxy: this._proxy,
                     testServers: this.testServers,
                     socket: this.networkSocket,
-                }));
+                }), false);
                 if (this.session.dcId !== dcId && !sender._authenticated) {
                     this._log.info(`Exporting authorization for data center ${dc.ipAddress} with layer ${AllTLObjects_1.LAYER}`);
                     const auth = await this.invoke(new tl_1.Api.auth.ExportAuthorization({ dcId: dcId }));
@@ -54456,23 +54214,26 @@ class TelegramBaseClient {
 }
 exports.TelegramBaseClient = TelegramBaseClient;
 
-},{"../":346,"../Helpers":295,"../entityCache":325,"../extensions":342,"../extensions/Logger":337,"../extensions/markdown":343,"../network":359,"../network/connection":358,"../network/connection/TCPMTProxy":356,"../platform":360,"../sessions":366,"../tl":389,"../tl/AllTLObjects":368,"./os":311,"async-mutex":223}],314:[function(require,module,exports){
+},{"../":347,"../Helpers":294,"../entityCache":324,"../extensions":343,"../extensions/Deferred":336,"../extensions/Logger":337,"../extensions/markdown":344,"../network":360,"../network/connection":359,"../network/connection/TCPMTProxy":357,"../platform":361,"../sessions":367,"../tl":390,"../tl/AllTLObjects":369,"./os":310,"async-mutex":223}],313:[function(require,module,exports){
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports._updateLoop = exports._dispatchUpdate = exports._processUpdate = exports._handleUpdate = exports.catchUp = exports.listEventHandlers = exports.removeEventHandler = exports.addEventHandler = exports.on = exports.StopPropagation = void 0;
 const tl_1 = require("../tl");
-const big_integer_1 = __importDefault(require("big-integer"));
 const network_1 = require("../network");
 const index_1 = require("../index");
 const Helpers_1 = require("../Helpers");
+const Logger_1 = require("../extensions/Logger");
 const PING_INTERVAL = 9000; // 9 sec
 const PING_TIMEOUT = 10000; // 10 sec
 const PING_FAIL_ATTEMPTS = 3;
 const PING_FAIL_INTERVAL = 100; // ms
 const PING_DISCONNECT_DELAY = 60000; // 1 min
+// An unusually long interval is a sign of returning from background mode...
+const PING_INTERVAL_TO_WAKE_UP = 5000; // 5 sec
+// ... so we send a quick "wake-up" ping to confirm than connection was dropped ASAP
+const PING_WAKE_UP_TIMEOUT = 3000; // 3 sec
+// We also send a warning to the user even a bit more quickly
+const PING_WAKE_UP_WARNING_TIMEOUT = 1000; // 1 sec
 /**
  If this exception is raised in any of the handlers for a given event,
  it will stop the execution of all other registered event handlers.
@@ -54603,7 +54364,9 @@ async function _dispatchUpdate(client, args) {
                     if (e instanceof StopPropagation) {
                         break;
                     }
-                    console.error(e);
+                    if (client._log.canSend(Logger_1.LogLevel.ERROR)) {
+                        console.error(e);
+                    }
                 }
             }
         }
@@ -54612,31 +54375,64 @@ async function _dispatchUpdate(client, args) {
 exports._dispatchUpdate = _dispatchUpdate;
 /** @hidden */
 async function _updateLoop(client) {
-    var _a;
-    while (client.connected) {
+    let lastPongAt;
+    while (!client._destroyed) {
+        await (0, Helpers_1.sleep)(PING_INTERVAL);
+        if (client._sender.isReconnecting || client._isSwitchingDc) {
+            lastPongAt = undefined;
+            continue;
+        }
         try {
-            await (0, Helpers_1.sleep)(60 * 1000);
-            if (!((_a = client._sender) === null || _a === void 0 ? void 0 : _a._transportConnected())) {
+            const ping = () => {
+                return client._sender.send(new tl_1.Api.PingDelayDisconnect({
+                    pingId: (0, Helpers_1.returnBigInt)((0, Helpers_1.getRandomInt)(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)),
+                    disconnectDelay: PING_DISCONNECT_DELAY,
+                }));
+            };
+            const pingAt = Date.now();
+            const lastInterval = lastPongAt ? pingAt - lastPongAt : undefined;
+            if (!lastInterval || lastInterval < PING_INTERVAL_TO_WAKE_UP) {
+                await attempts(() => timeout(ping, PING_TIMEOUT), PING_FAIL_ATTEMPTS, PING_FAIL_INTERVAL);
+            }
+            else {
+                let wakeUpWarningTimeout = setTimeout(() => {
+                    _handleUpdate(client, network_1.UpdateConnectionState.disconnected);
+                    wakeUpWarningTimeout = undefined;
+                }, PING_WAKE_UP_WARNING_TIMEOUT);
+                await timeout(ping, PING_WAKE_UP_TIMEOUT);
+                if (wakeUpWarningTimeout) {
+                    clearTimeout(wakeUpWarningTimeout);
+                    wakeUpWarningTimeout = undefined;
+                }
+                _handleUpdate(client, network_1.UpdateConnectionState.connected);
+            }
+            lastPongAt = Date.now();
+        }
+        catch (err) {
+            // eslint-disable-next-line no-console
+            if (client._log.canSend(Logger_1.LogLevel.ERROR)) {
+                console.error(err);
+            }
+            lastPongAt = undefined;
+            if (client._sender.isReconnecting || client._isSwitchingDc) {
                 continue;
             }
-            await client.invoke(new tl_1.Api.Ping({
-                pingId: (0, big_integer_1.default)((0, Helpers_1.getRandomInt)(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)),
-            }));
+            client._sender.reconnect();
         }
-        catch (e) {
-            return;
-        }
-        client.session.save();
-        if (new Date().getTime() - (client._lastRequest || 0) >
-            30 * 60 * 1000) {
+        // We need to send some content-related request at least hourly
+        // for Telegram to keep delivering updates, otherwise they will
+        // just stop even if we're connected. Do so every 30 minutes.
+        if (Date.now() - (client._lastRequest || 0) > 30 * 60 * 1000) {
             try {
                 await client.invoke(new tl_1.Api.updates.GetState());
             }
             catch (e) {
                 // we don't care about errors here
             }
+            lastPongAt = undefined;
         }
     }
+    await client.disconnect();
 }
 exports._updateLoop = _updateLoop;
 /** @hidden */
@@ -54656,14 +54452,17 @@ async function attempts(cb, times, pause) {
     return undefined;
 }
 /** @hidden */
-function timeout(promise, ms) {
+function timeout(cb, ms) {
+    let isResolved = false;
     return Promise.race([
-        promise,
-        (0, Helpers_1.sleep)(ms).then(() => Promise.reject(new Error("TIMEOUT"))),
-    ]);
+        cb(),
+        (0, Helpers_1.sleep)(ms).then(() => isResolved ? undefined : Promise.reject(new Error("TIMEOUT"))),
+    ]).finally(() => {
+        isResolved = true;
+    });
 }
 
-},{"../Helpers":295,"../events/Raw":331,"../index":346,"../network":359,"../tl":389,"big-integer":226}],315:[function(require,module,exports){
+},{"../Helpers":294,"../events/Raw":330,"../extensions/Logger":337,"../index":347,"../network":360,"../tl":390}],314:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -55046,10 +54845,16 @@ async function _sendAlbum(client, entity, { file, caption, forceDocument = false
             entities: msgEntities,
         }));
     }
+    let replyObject = undefined;
+    if (replyTo != undefined) {
+        replyObject = new tl_1.Api.InputReplyToMessage({
+            replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
+            topMsgId: (0, Utils_1.getMessageId)(topMsgId),
+        });
+    }
     const result = await client.invoke(new tl_1.Api.messages.SendMultiMedia({
         peer: entity,
-        replyToMsgId: replyTo,
-        topMsgId: index_1.utils.getMessageId(topMsgId),
+        replyTo: replyObject,
         multiMedia: albumFiles,
         silent: silent,
         scheduleDate: scheduleDate,
@@ -55089,6 +54894,7 @@ async function sendFile(client, entity, { file, caption, forceDocument = false, 
             clearDraft: clearDraft,
             forceDocument: forceDocument,
             noforwards: noforwards,
+            topMsgId: topMsgId,
         });
     }
     if (Array.isArray(caption)) {
@@ -55117,11 +54923,17 @@ async function sendFile(client, entity, { file, caption, forceDocument = false, 
         throw new Error(`Cannot use ${file} as file.`);
     }
     const markup = client.buildReplyMarkup(buttons);
+    let replyObject = undefined;
+    if (replyTo != undefined) {
+        replyObject = new tl_1.Api.InputReplyToMessage({
+            replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
+            topMsgId: (0, Utils_1.getMessageId)(topMsgId),
+        });
+    }
     const request = new tl_1.Api.messages.SendMedia({
         peer: entity,
         media: media,
-        replyToMsgId: replyTo,
-        topMsgId: index_1.utils.getMessageId(topMsgId),
+        replyTo: replyObject,
         message: caption,
         entities: msgEntities,
         replyMarkup: markup,
@@ -55152,7 +54964,7 @@ function fileToBuffer(file) {
 }
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../Helpers":295,"../Utils":297,"../index":346,"../tl":389,"./fs":307,"./messageParse":309,"./messages":310,"./path":312,"big-integer":226,"buffer":69}],316:[function(require,module,exports){
+},{"../Helpers":294,"../Utils":296,"../index":347,"../tl":390,"./fs":306,"./messageParse":308,"./messages":309,"./path":311,"big-integer":226,"buffer":69}],315:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -55165,26 +54977,34 @@ const Helpers_1 = require("../Helpers");
 const __1 = require("../");
 const big_integer_1 = __importDefault(require("big-integer"));
 const Logger_1 = require("../extensions/Logger");
+const RequestState_1 = require("../network/RequestState");
 // UserMethods {
 // region Invoking Telegram request
 /** @hidden */
-async function invoke(client, request, sender) {
+async function invoke(client, request, dcId, otherSender) {
     if (request.classType !== "request") {
         throw new Error("You can only invoke MTProtoRequests");
     }
-    if (!sender) {
-        sender = client._sender;
+    let sender = client._sender;
+    if (dcId) {
+        sender = await client.getSender(dcId);
+    }
+    if (otherSender != undefined) {
+        sender = otherSender;
     }
     if (sender == undefined) {
         throw new Error("Cannot send requests while disconnected. You need to call .connect()");
     }
+    await client._connectedDeferred.promise;
     await request.resolve(client, __1.utils);
     client._lastRequest = new Date().getTime();
-    let attempt;
+    const state = new RequestState_1.RequestState(request);
+    let attempt = 0;
     for (attempt = 0; attempt < client._requestRetries; attempt++) {
+        sender.addStateToQueue(state);
         try {
-            const promise = sender.send(request);
-            const result = await promise;
+            const result = await state.promise;
+            state.finished.resolve();
             client.session.processEntities(result);
             client._entityCache.add(result);
             return result;
@@ -55203,6 +55023,7 @@ async function invoke(client, request, sender) {
                     await (0, Helpers_1.sleep)(e.seconds * 1000);
                 }
                 else {
+                    state.finished.resolve();
                     throw e;
                 }
             }
@@ -55213,14 +55034,31 @@ async function invoke(client, request, sender) {
                 const shouldRaise = e instanceof __1.errors.PhoneMigrateError ||
                     e instanceof __1.errors.NetworkMigrateError;
                 if (shouldRaise && (await client.isUserAuthorized())) {
+                    state.finished.resolve();
                     throw e;
                 }
                 await client._switchDC(e.newDc);
+                sender =
+                    dcId === undefined
+                        ? client._sender
+                        : await client.getSender(dcId);
+            }
+            else if (e instanceof __1.errors.MsgWaitError) {
+                // We need to resend this after the old one was confirmed.
+                await state.isReady();
+                state.after = undefined;
+            }
+            else if (e.message === "CONNECTION_NOT_INITED") {
+                await client.disconnect();
+                await (0, Helpers_1.sleep)(2000);
+                await client.connect();
             }
             else {
+                state.finished.resolve();
                 throw e;
             }
         }
+        state.resetPromise();
     }
     throw new Error(`Request was unsuccessful ${attempt} time(s)`);
 }
@@ -55611,7 +55449,7 @@ function _selfId(client) {
 }
 exports._selfId = _selfId;
 
-},{"../":346,"../Helpers":295,"../Utils":297,"../extensions/Logger":337,"../tl":389,"big-integer":226}],317:[function(require,module,exports){
+},{"../":347,"../Helpers":294,"../Utils":296,"../extensions/Logger":337,"../network/RequestState":353,"../tl":390,"big-integer":226}],316:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -55691,7 +55529,7 @@ class AuthKey {
 exports.AuthKey = AuthKey;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../Helpers":295,"../extensions":342,"buffer":69}],318:[function(require,module,exports){
+},{"../Helpers":294,"../extensions":343,"buffer":69}],317:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -55734,7 +55572,7 @@ class CTR {
 exports.CTR = CTR;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./crypto":323,"buffer":69}],319:[function(require,module,exports){
+},{"./crypto":322,"buffer":69}],318:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -55810,7 +55648,7 @@ class Factorizator {
 }
 exports.Factorizator = Factorizator;
 
-},{"../Helpers":295,"big-integer":226}],320:[function(require,module,exports){
+},{"../Helpers":294,"big-integer":226}],319:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -55848,7 +55686,7 @@ class IGENEW {
 exports.IGE = IGENEW;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../Helpers":295,"@cryptography/aes":219,"buffer":69}],321:[function(require,module,exports){
+},{"../Helpers":294,"@cryptography/aes":219,"buffer":69}],320:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __rest = (this && this.__rest) || function (s, e) {
@@ -55922,7 +55760,7 @@ async function encrypt(fingerprint, data) {
 exports.encrypt = encrypt;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../Helpers":295,"big-integer":226,"buffer":69}],322:[function(require,module,exports){
+},{"../Helpers":294,"big-integer":226,"buffer":69}],321:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ab2i = exports.i2ab = exports.isBigEndian = exports.ab2iBig = exports.ab2iLow = exports.i2abBig = exports.i2abLow = void 0;
@@ -55976,7 +55814,7 @@ exports.isBigEndian = new Uint8Array(new Uint32Array([0x01020304]))[0] === 0x01;
 exports.i2ab = exports.isBigEndian ? i2abBig : i2abLow;
 exports.ab2i = exports.isBigEndian ? ab2iBig : ab2iLow;
 
-},{}],323:[function(require,module,exports){
+},{}],322:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -56097,7 +55935,7 @@ function createHash(algorithm) {
 exports.createHash = createHash;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./converters":322,"./words":324,"@cryptography/aes":219,"buffer":69}],324:[function(require,module,exports){
+},{"./converters":321,"./words":323,"@cryptography/aes":219,"buffer":69}],323:[function(require,module,exports){
 "use strict";
 /*
  * Imported from https://github.com/spalt08/cryptography/blob/master/packages/aes/src/utils/words.ts
@@ -56147,7 +55985,7 @@ function xor(left, right, to = left) {
 }
 exports.xor = xor;
 
-},{}],325:[function(require,module,exports){
+},{}],324:[function(require,module,exports){
 "use strict";
 // Which updates have the following fields?
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -56228,7 +56066,7 @@ class EntityCache {
 }
 exports.EntityCache = EntityCache;
 
-},{"./Helpers":295,"./Utils":297,"./tl":389,"big-integer":226}],326:[function(require,module,exports){
+},{"./Helpers":294,"./Utils":296,"./tl":390,"big-integer":226}],325:[function(require,module,exports){
 "use strict";
 /**
  * Errors not related to the Telegram API itself
@@ -56352,7 +56190,7 @@ BadMessageError.ErrorMessages = {
     64: "Invalid container.",
 };
 
-},{}],327:[function(require,module,exports){
+},{}],326:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TimedOutError = exports.ServerError = exports.FloodError = exports.AuthKeyError = exports.NotFoundError = exports.ForbiddenError = exports.UnauthorizedError = exports.BadRequestError = exports.InvalidDCError = exports.RPCError = void 0;
@@ -56488,7 +56326,7 @@ class TimedOutError extends RPCError {
 }
 exports.TimedOutError = TimedOutError;
 
-},{"ts-custom-error":392}],328:[function(require,module,exports){
+},{"ts-custom-error":393}],327:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.rpcErrorRe = exports.MsgWaitError = exports.EmailUnconfirmedError = exports.NetworkMigrateError = exports.FileMigrateError = exports.FloodTestPhoneWaitError = exports.FloodWaitError = exports.SlowModeWaitError = exports.PhoneMigrateError = exports.UserMigrateError = void 0;
@@ -56606,7 +56444,7 @@ exports.rpcErrorRe = new Map([
     [/EMAIL_UNCONFIRMED_(\d+)/, EmailUnconfirmedError],
 ]);
 
-},{"./RPCBaseErrors":327}],329:[function(require,module,exports){
+},{"./RPCBaseErrors":326}],328:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -56641,7 +56479,7 @@ __exportStar(require("./Common"), exports);
 __exportStar(require("./RPCBaseErrors"), exports);
 __exportStar(require("./RPCErrorList"), exports);
 
-},{"./Common":326,"./RPCBaseErrors":327,"./RPCErrorList":328}],330:[function(require,module,exports){
+},{"./Common":325,"./RPCBaseErrors":326,"./RPCErrorList":327}],329:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NewMessageEvent = exports.NewMessage = void 0;
@@ -56822,7 +56660,7 @@ class NewMessageEvent extends common_1.EventCommon {
 }
 exports.NewMessageEvent = NewMessageEvent;
 
-},{"../extensions/Logger":337,"../tl":389,"./common":332}],331:[function(require,module,exports){
+},{"../extensions/Logger":337,"../tl":390,"./common":331}],330:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Raw = void 0;
@@ -56867,7 +56705,7 @@ class Raw extends common_1.EventBuilder {
 }
 exports.Raw = Raw;
 
-},{"./common":332}],332:[function(require,module,exports){
+},{"./common":331}],331:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -57010,7 +56848,7 @@ class EventCommonSender extends senderGetter_1.SenderGetter {
 }
 exports.EventCommonSender = EventCommonSender;
 
-},{"../":346,"../Helpers":295,"../Utils":297,"../tl":389,"../tl/custom":382,"../tl/custom/senderGetter":387,"big-integer":226}],333:[function(require,module,exports){
+},{"../":347,"../Helpers":294,"../Utils":296,"../tl":390,"../tl/custom":383,"../tl/custom/senderGetter":388,"big-integer":226}],332:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NewMessageEvent = exports.NewMessage = exports.Raw = void 0;
@@ -57020,7 +56858,7 @@ var NewMessage_1 = require("./NewMessage");
 Object.defineProperty(exports, "NewMessage", { enumerable: true, get: function () { return NewMessage_1.NewMessage; } });
 Object.defineProperty(exports, "NewMessageEvent", { enumerable: true, get: function () { return NewMessage_1.NewMessageEvent; } });
 
-},{"./NewMessage":330,"./Raw":331}],334:[function(require,module,exports){
+},{"./NewMessage":329,"./Raw":330}],333:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AsyncQueue = void 0;
@@ -57054,7 +56892,7 @@ class AsyncQueue {
 }
 exports.AsyncQueue = AsyncQueue;
 
-},{}],335:[function(require,module,exports){
+},{}],334:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BinaryReader = void 0;
@@ -57298,7 +57136,7 @@ class BinaryReader {
 }
 exports.BinaryReader = BinaryReader;
 
-},{"../Helpers":295,"../errors":329,"../tl/AllTLObjects":368,"../tl/core":375}],336:[function(require,module,exports){
+},{"../Helpers":294,"../errors":328,"../tl/AllTLObjects":369,"../tl/core":376}],335:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -57317,7 +57155,25 @@ class BinaryWriter {
 exports.BinaryWriter = BinaryWriter;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"buffer":69}],337:[function(require,module,exports){
+},{"buffer":69}],336:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+class Deferred {
+    constructor() {
+        this.promise = new Promise((resolve, reject) => {
+            this.reject = reject;
+            this.resolve = resolve;
+        });
+    }
+    static resolved(value) {
+        const deferred = new Deferred();
+        deferred.resolve(value);
+        return deferred;
+    }
+}
+exports.default = Deferred;
+
+},{}],337:[function(require,module,exports){
 "use strict";
 // let _level: string | undefined = undefined;
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -57446,7 +57302,7 @@ class Logger {
 }
 exports.Logger = Logger;
 
-},{"../platform":360}],338:[function(require,module,exports){
+},{"../platform":361}],338:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -57454,6 +57310,13 @@ exports.MessagePacker = void 0;
 const core_1 = require("../tl/core");
 const core_2 = require("../tl/core");
 const BinaryWriter_1 = require("./BinaryWriter");
+const USE_INVOKE_AFTER_WITH = new Set([
+    "messages.SendMessage",
+    "messages.SendMedia",
+    "messages.SendMultiMedia",
+    "messages.ForwardMessages",
+    "messages.SendInlineBotResult",
+]);
 class MessagePacker {
     constructor(state, logger) {
         this._state = state;
@@ -57467,23 +57330,81 @@ class MessagePacker {
     values() {
         return this._queue;
     }
-    append(state) {
-        this._queue.push(state);
+    append(state, setReady = true, atStart = false) {
+        var _a, _b;
+        // We need to check if there is already a `USE_INVOKE_AFTER_WITH` request
+        if (state && USE_INVOKE_AFTER_WITH.has(state.request.className)) {
+            if (atStart) {
+                // Assign `after` for the previously first `USE_INVOKE_AFTER_WITH` request
+                for (let i = 0; i < this._queue.length; i++) {
+                    if (USE_INVOKE_AFTER_WITH.has((_a = this._queue[i]) === null || _a === void 0 ? void 0 : _a.request.className)) {
+                        this._queue[i].after = state;
+                        break;
+                    }
+                }
+            }
+            else {
+                // Assign after for the previous `USE_INVOKE_AFTER_WITH` request
+                for (let i = this._queue.length - 1; i >= 0; i--) {
+                    if (USE_INVOKE_AFTER_WITH.has((_b = this._queue[i]) === null || _b === void 0 ? void 0 : _b.request.className)) {
+                        state.after = this._queue[i];
+                        break;
+                    }
+                }
+            }
+        }
+        if (atStart) {
+            this._queue.unshift(state);
+        }
+        else {
+            this._queue.push(state);
+        }
+        if (setReady && this.setReady) {
+            this.setReady(true);
+        }
+        // 1658238041=MsgsAck, we don't care about MsgsAck here because they never resolve anyway.
+        if (state && state.request.CONSTRUCTOR_ID !== 1658238041) {
+            this._pendingStates.push(state);
+            state
+                .promise // Using finally causes triggering `unhandledrejection` event
+                .catch(() => { })
+                .finally(() => {
+                this._pendingStates = this._pendingStates.filter((s) => s !== state);
+            });
+        }
+    }
+    prepend(states) {
+        states.reverse().forEach((state) => {
+            this.append(state, false, true);
+        });
         if (this.setReady) {
             this.setReady(true);
         }
     }
     extend(states) {
-        for (const state of states) {
-            this.append(state);
+        states.forEach((state) => {
+            this.append(state, false);
+        });
+        if (this.setReady) {
+            this.setReady(true);
         }
     }
-    async get() {
+    clear() {
+        this._queue = [];
+        this.append(undefined);
+    }
+    async wait() {
         if (!this._queue.length) {
             this._ready = new Promise((resolve) => {
                 this.setReady = resolve;
             });
             await this._ready;
+        }
+    }
+    async get() {
+        if (!this._queue[this._queue.length - 1]) {
+            this._queue = this._queue.filter(Boolean);
+            return undefined;
         }
         let data;
         let buffer = new BinaryWriter_1.BinaryWriter(Buffer.alloc(0));
@@ -57492,9 +57413,15 @@ class MessagePacker {
         while (this._queue.length &&
             batch.length <= core_1.MessageContainer.MAXIMUM_LENGTH) {
             const state = this._queue.shift();
+            if (!state) {
+                continue;
+            }
             size += state.data.length + core_2.TLMessage.SIZE_OVERHEAD;
             if (size <= core_1.MessageContainer.MAXIMUM_SIZE) {
                 let afterId;
+                if (state.after) {
+                    afterId = state.after.msgId;
+                }
                 if (state.after) {
                     afterId = state.after.msgId;
                 }
@@ -57529,19 +57456,42 @@ class MessagePacker {
         data = buffer.getValue();
         return { batch, data };
     }
-    rejectAll() {
-        this._pendingStates.forEach((requestState) => {
-            var _a;
-            requestState.reject(new Error("Disconnect (caused from " +
-                ((_a = requestState === null || requestState === void 0 ? void 0 : requestState.request) === null || _a === void 0 ? void 0 : _a.className) +
-                ")"));
-        });
-    }
 }
 exports.MessagePacker = MessagePacker;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../tl/core":375,"./BinaryWriter":336,"buffer":69}],339:[function(require,module,exports){
+},{"../tl/core":376,"./BinaryWriter":335,"buffer":69}],339:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PendingState = void 0;
+class PendingState {
+    constructor() {
+        this._pending = new Map();
+    }
+    set(msgId, state) {
+        this._pending.set(msgId.toString(), state);
+    }
+    get(msgId) {
+        return this._pending.get(msgId.toString());
+    }
+    getAndDelete(msgId) {
+        const state = this.get(msgId);
+        this.delete(msgId);
+        return state;
+    }
+    values() {
+        return Array.from(this._pending.values());
+    }
+    delete(msgId) {
+        this._pending.delete(msgId.toString());
+    }
+    clear() {
+        this._pending.clear();
+    }
+}
+exports.PendingState = PendingState;
+
+},{}],340:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -57729,7 +57679,7 @@ class PromisedNetSockets {
 exports.PromisedNetSockets = PromisedNetSockets;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./net":344,"./socks":345,"async-mutex":223,"buffer":69}],340:[function(require,module,exports){
+},{"./net":345,"./socks":346,"async-mutex":223,"buffer":69}],341:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -57867,7 +57817,7 @@ class PromisedWebSockets {
 exports.PromisedWebSockets = PromisedWebSockets;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../platform":360,"async-mutex":223,"buffer":69,"websocket":394}],341:[function(require,module,exports){
+},{"../platform":361,"async-mutex":223,"buffer":69,"websocket":395}],342:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HTMLParser = void 0;
@@ -58050,7 +58000,7 @@ class HTMLParser {
 </pre>`);
                 }
                 else {
-                    html.push(`<pre></pre><code>${entityText}</code><pre>`);
+                    html.push(`<pre>${entityText}</pre>`);
                 }
             }
             else if (entity instanceof tl_1.Api.MessageEntityEmail) {
@@ -58076,7 +58026,7 @@ class HTMLParser {
 }
 exports.HTMLParser = HTMLParser;
 
-},{"../index":346,"../tl":389,"htmlparser2":256}],342:[function(require,module,exports){
+},{"../index":347,"../tl":390,"htmlparser2":256}],343:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AsyncQueue = exports.MessagePacker = exports.PromisedNetSockets = exports.PromisedWebSockets = exports.BinaryReader = exports.BinaryWriter = exports.Logger = void 0;
@@ -58095,7 +58045,7 @@ Object.defineProperty(exports, "MessagePacker", { enumerable: true, get: functio
 var AsyncQueue_1 = require("./AsyncQueue");
 Object.defineProperty(exports, "AsyncQueue", { enumerable: true, get: function () { return AsyncQueue_1.AsyncQueue; } });
 
-},{"./AsyncQueue":334,"./BinaryReader":335,"./BinaryWriter":336,"./Logger":337,"./MessagePacker":338,"./PromisedNetSockets":339,"./PromisedWebSockets":340}],343:[function(require,module,exports){
+},{"./AsyncQueue":333,"./BinaryReader":334,"./BinaryWriter":335,"./Logger":337,"./MessagePacker":338,"./PromisedNetSockets":340,"./PromisedWebSockets":341}],344:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MarkdownParser = void 0;
@@ -58173,7 +58123,7 @@ class MarkdownParser {
 }
 exports.MarkdownParser = MarkdownParser;
 
-},{"../client/messageParse":309}],344:[function(require,module,exports){
+},{"../client/messageParse":308}],345:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -58192,7 +58142,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("net"), exports);
 
-},{"net":1}],345:[function(require,module,exports){
+},{"net":1}],346:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -58211,7 +58161,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("socks"), exports);
 
-},{"socks":292}],346:[function(require,module,exports){
+},{"socks":291}],347:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -58265,14 +58215,14 @@ exports.client = client;
 const password = __importStar(require("./Password"));
 exports.password = password;
 
-},{"./Helpers":295,"./Password":296,"./Utils":297,"./Version":298,"./client":308,"./client/TelegramClient":300,"./errors":329,"./extensions":342,"./extensions/Logger":337,"./network":359,"./sessions":366,"./tl":389}],347:[function(require,module,exports){
+},{"./Helpers":294,"./Password":295,"./Utils":296,"./Version":297,"./client":307,"./client/TelegramClient":299,"./errors":328,"./extensions":343,"./extensions/Logger":337,"./network":360,"./sessions":367,"./tl":390}],348:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.inspect = void 0;
 var util_1 = require("util");
 Object.defineProperty(exports, "inspect", { enumerable: true, get: function () { return util_1.inspect; } });
 
-},{"util":217}],348:[function(require,module,exports){
+},{"util":217}],349:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -58469,7 +58419,7 @@ async function doAuthentication(sender, log) {
 exports.doAuthentication = doAuthentication;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../Helpers":295,"../crypto/AuthKey":317,"../crypto/Factorizator":319,"../crypto/IGE":320,"../crypto/RSA":321,"../errors":329,"../extensions":342,"../tl":389,"big-integer":226,"buffer":69}],349:[function(require,module,exports){
+},{"../Helpers":294,"../crypto/AuthKey":316,"../crypto/Factorizator":318,"../crypto/IGE":319,"../crypto/RSA":320,"../errors":328,"../extensions":343,"../tl":390,"big-integer":226,"buffer":69}],350:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -58547,7 +58497,8 @@ class MTProtoPlainSender {
 exports.MTProtoPlainSender = MTProtoPlainSender;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../Helpers":295,"../errors":329,"../extensions":342,"./MTProtoState":351,"big-integer":226,"buffer":69}],350:[function(require,module,exports){
+},{"../Helpers":294,"../errors":328,"../extensions":343,"./MTProtoState":352,"big-integer":226,"buffer":69}],351:[function(require,module,exports){
+(function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -58570,7 +58521,6 @@ exports.MTProtoSender = void 0;
 const AuthKey_1 = require("../crypto/AuthKey");
 const MTProtoState_1 = require("./MTProtoState");
 const extensions_1 = require("../extensions");
-const extensions_2 = require("../extensions");
 const core_1 = require("../tl/core");
 const tl_1 = require("../tl");
 const big_integer_1 = __importDefault(require("big-integer"));
@@ -58582,7 +58532,8 @@ const errors_1 = require("../errors");
 const _1 = require("./");
 const Logger_1 = require("../extensions/Logger");
 const async_mutex_1 = require("async-mutex");
-const real_cancellable_promise_1 = require("real-cancellable-promise");
+const PendingState_1 = require("../extensions/PendingState");
+var MsgsAck = tl_1.Api.MsgsAck;
 class MTProtoSender {
     /**
      * @param authKey
@@ -58620,6 +58571,7 @@ class MTProtoSender {
         this.isConnecting = false;
         this._authenticated = false;
         this._userConnected = false;
+        this.isReconnecting = false;
         this._reconnecting = false;
         this._disconnected = true;
         /**
@@ -58636,11 +58588,11 @@ class MTProtoSender {
          * Outgoing messages are put in a queue and sent in a batch.
          * Note that here we're also storing their ``_RequestState``.
          */
-        this._sendQueue = new extensions_2.MessagePacker(this._state, this._log);
+        this._sendQueue = new extensions_1.MessagePacker(this._state, this._log);
         /**
          * Sent states are remembered until a response is received.
          */
-        this._pendingState = new Map();
+        this._pendingState = new PendingState_1.PendingState();
         /**
          * Responses must be acknowledged, and we can also batch these.
          */
@@ -58681,21 +58633,35 @@ class MTProtoSender {
     /**
      * Connects to the specified given connection using the given auth key.
      */
-    async connect(connection) {
-        const release = await this._connectMutex.acquire();
-        try {
-            if (this._userConnected) {
-                this._log.info("User is already connected!");
-                return false;
+    async connect(connection, force) {
+        this.userDisconnected = false;
+        if (this._userConnected && !force) {
+            this._log.info("User is already connected!");
+            return false;
+        }
+        this.isConnecting = true;
+        this._connection = connection;
+        for (let attempt = 0; attempt < this._retries; attempt++) {
+            try {
+                await this._connect();
+                if (this._updateCallback) {
+                    this._updateCallback(this._client, new _1.UpdateConnectionState(_1.UpdateConnectionState.connected));
+                }
+                break;
             }
-            this._connection = connection;
-            await this._connect();
-            this._userConnected = true;
-            return true;
+            catch (err) {
+                if (this._updateCallback && attempt === 0) {
+                    this._updateCallback(this._client, new _1.UpdateConnectionState(_1.UpdateConnectionState.disconnected));
+                }
+                this._log.error(`WebSocket connection failed attempt: ${attempt + 1}`);
+                if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
+                    console.error(err);
+                }
+                await (0, Helpers_1.sleep)(this._delay);
+            }
         }
-        finally {
-            release();
-        }
+        this.isConnecting = false;
+        return true;
     }
     isConnected() {
         return this._userConnected;
@@ -58710,16 +58676,9 @@ class MTProtoSender {
      * all pending requests, and closes the send and receive loops.
      */
     async disconnect() {
-        const release = await this._connectMutex.acquire();
-        try {
-            await this._disconnect();
-        }
-        catch (e) {
-            this._log.error(e);
-        }
-        finally {
-            release();
-        }
+        this.userDisconnected = true;
+        this._log.warn("Disconnecting...");
+        await this._disconnect();
     }
     /**
      *
@@ -58747,12 +58706,13 @@ class MTProtoSender {
      * @returns {RequestState}
      */
     send(request) {
-        if (!this._userConnected) {
-            throw new Error("Cannot send requests while disconnected. You need to call .connect()");
-        }
         const state = new RequestState_1.RequestState(request);
+        this._log.debug(`Send ${request.className}`);
         this._sendQueue.append(state);
         return state.promise;
+    }
+    addStateToQueue(state) {
+        this._sendQueue.append(state);
     }
     /**
      * Performs the actual connection, retrying, generating the
@@ -58762,81 +58722,55 @@ class MTProtoSender {
      * @private
      */
     async _connect() {
-        this._log.info("Connecting to {0} using {1}"
-            .replace("{0}", this._connection.toString())
-            .replace("{1}", this._connection.socket.toString()));
-        let connected = false;
-        for (let attempt = 0; attempt < this._retries; attempt++) {
-            if (!connected) {
-                connected = await this._tryConnect(attempt);
-                if (!connected) {
-                    continue;
-                }
-            }
-            if (!this.authKey.getKey()) {
-                try {
-                    if (!(await this._tryGenAuthKey(attempt))) {
-                        continue;
-                    }
-                }
-                catch (err) {
-                    this._log.warn(`Connection error ${attempt} during auth_key gen`);
-                    if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
-                        console.error(err);
-                    }
-                    await this._connection.disconnect();
-                    connected = false;
-                    await (0, Helpers_1.sleep)(this._delay);
-                    continue;
-                }
-            }
-            else {
-                this._authenticated = true;
-                this._log.debug("Already have an auth key ...");
-            }
-            break;
-        }
-        if (!connected) {
-            throw new Error(`Connection to telegram failed after ${this._retries} time(s)`);
+        const connection = this._connection;
+        if (!connection.isConnected()) {
+            this._log.info("Connecting to {0}...".replace("{0}", connection.toString()));
+            await connection.connect();
+            this._log.debug("Connection success!");
         }
         if (!this.authKey.getKey()) {
-            const error = new Error(`auth key generation failed after ${this._retries} time(s)`);
-            await this._disconnect(error);
-            throw error;
+            const plain = new MTProtoPlainSender_1.MTProtoPlainSender(connection, this._log);
+            this._log.debug("New auth_key attempt ...");
+            const res = await (0, Authenticator_1.doAuthentication)(plain, this._log);
+            this._log.debug("Generated new auth_key successfully");
+            await this.authKey.setKey(res.authKey);
+            this._state.timeOffset = res.timeOffset;
+            if (this._authKeyCallback) {
+                await this._authKeyCallback(this.authKey, this._dcId);
+            }
+        }
+        else {
+            this._authenticated = true;
+            this._log.debug("Already have an auth key ...");
         }
         this._userConnected = true;
-        this._log.debug("Starting receive loop");
-        this._recvLoopHandle = this._recvLoop();
-        this._log.debug("Starting send loop");
-        this._sendLoopHandle = this._sendLoop();
-        this._log.info("Connection to %s complete!".replace("%s", this._connection.toString()));
+        this.isReconnecting = false;
+        if (!this._sendLoopHandle) {
+            this._log.debug("Starting send loop");
+            this._sendLoopHandle = this._sendLoop();
+        }
+        if (!this._recvLoopHandle) {
+            this._log.debug("Starting receive loop");
+            this._recvLoopHandle = this._recvLoop();
+        }
+        // _disconnected only completes after manual disconnection
+        // or errors after which the sender cannot continue such
+        // as failing to reconnect or any unexpected error.
+        this._log.info("Connection to %s complete!".replace("%s", connection.toString()));
     }
-    async _disconnect(error) {
-        if (!this._connection) {
+    async _disconnect() {
+        const connection = this._connection;
+        if (this._updateCallback) {
+            this._updateCallback(this._client, new _1.UpdateConnectionState(_1.UpdateConnectionState.disconnected));
+        }
+        if (connection === undefined) {
             this._log.info("Not disconnecting (already have no connection)");
             return;
         }
-        this._log.info("Disconnecting from %s...".replace("%s", this._connection.toString()));
+        this._log.info("Disconnecting from %s...".replace("%s", connection.toString()));
         this._userConnected = false;
-        try {
-            this._log.debug("Closing current connection...");
-            await this._connection.disconnect();
-        }
-        finally {
-            this._log.debug(`Cancelling ${this._pendingState.size} pending message(s)...`);
-            for (const state of this._pendingState.values()) {
-                if (error && !state.result) {
-                    state.reject(error);
-                }
-                else {
-                    state.reject("disconnected");
-                }
-            }
-            this._pendingState.clear();
-            this._cancelLoops();
-            this._log.info("Disconnecting from %s complete!".replace("%s", this._connection.toString()));
-            this._connection = undefined;
-        }
+        this._log.debug("Closing current connection...");
+        await connection.disconnect();
     }
     _cancelLoops() {
         this._cancelSend = true;
@@ -58850,79 +58784,98 @@ class MTProtoSender {
      * @private
      */
     async _sendLoop() {
-        this._cancelSend = false;
-        while (this._userConnected &&
-            !this._reconnecting &&
-            !this._cancelSend) {
-            if (this._pendingAck.size) {
-                const ack = new RequestState_1.RequestState(new tl_1.Api.MsgsAck({ msgIds: Array(...this._pendingAck) }));
-                this._sendQueue.append(ack);
-                this._lastAcks.push(ack);
-                if (this._lastAcks.length >= 10) {
-                    this._lastAcks.shift();
+        // Retry previous pending requests
+        this._sendQueue.prepend(this._pendingState.values());
+        this._pendingState.clear();
+        while (this._userConnected && !this.isReconnecting) {
+            const appendAcks = () => {
+                if (this._pendingAck.size) {
+                    const ack = new RequestState_1.RequestState(new MsgsAck({ msgIds: Array(...this._pendingAck) }));
+                    this._sendQueue.append(ack);
+                    this._lastAcks.push(ack);
+                    if (this._lastAcks.length >= 10) {
+                        this._lastAcks.shift();
+                    }
+                    this._pendingAck.clear();
                 }
-                this._pendingAck.clear();
-            }
-            this._log.debug("Waiting for messages to send..." + this._reconnecting);
+            };
+            appendAcks();
+            this._log.debug(`Waiting for messages to send... ${this.isReconnecting}`);
             // TODO Wait for the connection send queue to be empty?
             // This means that while it's not empty we can wait for
             // more messages to be added to the send queue.
+            await this._sendQueue.wait();
+            // If we've had new ACKs appended while waiting for messages to send, add them to queue
+            appendAcks();
             const res = await this._sendQueue.get();
+            this._log.debug(`Got ${res === null || res === void 0 ? void 0 : res.batch.length} message(s) to send`);
+            if (this.isReconnecting) {
+                this._log.debug("Reconnecting");
+                this._sendLoopHandle = undefined;
+                return;
+            }
             if (!res) {
                 continue;
             }
             let { data } = res;
             const { batch } = res;
             this._log.debug(`Encrypting ${batch.length} message(s) in ${data.length} bytes for sending`);
+            this._log.debug(`Sending   ${batch.map((m) => m.request.className)}`);
             data = await this._state.encryptMessageData(data);
+            try {
+                await this._connection.send(data);
+            }
+            catch (e) {
+                this._log.debug(`Connection closed while sending data ${e}`);
+                if (this._log.canSend(Logger_1.LogLevel.DEBUG)) {
+                    console.error(e);
+                }
+                this._sendLoopHandle = undefined;
+                return;
+            }
             for (const state of batch) {
                 if (!Array.isArray(state)) {
                     if (state.request.classType === "request") {
-                        this._pendingState.set(state.msgId.toString(), state);
+                        this._pendingState.set(state.msgId, state);
                     }
                 }
                 else {
                     for (const s of state) {
                         if (s.request.classType === "request") {
-                            this._pendingState.set(s.msgId.toString(), s);
+                            this._pendingState.set(s.msgId, s);
                         }
                     }
                 }
             }
-            try {
-                await this._connection.send(data);
-            }
-            catch (e) {
-                this._log.error(e);
-                this._log.info("Connection closed while sending data");
-                this._startReconnecting(e);
-                return;
-            }
             this._log.debug("Encrypted messages put in a queue to be sent");
         }
+        this._sendLoopHandle = undefined;
     }
     async _recvLoop() {
         let body;
         let message;
-        while (this._userConnected && !this._reconnecting) {
+        while (this._userConnected && !this.isReconnecting) {
             this._log.debug("Receiving items from the network...");
             try {
-                this.cancellableRecvLoopPromise = (0, real_cancellable_promise_1.pseudoCancellable)(this._connection.recv());
-                body = await this.cancellableRecvLoopPromise;
+                body = await this._connection.recv();
             }
             catch (e) {
-                if (e instanceof real_cancellable_promise_1.Cancellation) {
-                    return;
+                /** when the server disconnects us we want to reconnect */
+                if (!this.userDisconnected) {
+                    this._log.warn("Connection closed while receiving data");
+                    if (this._log.canSend(Logger_1.LogLevel.WARN)) {
+                        console.error(e);
+                    }
+                    this.reconnect();
                 }
-                this._log.error(e);
-                this._log.warn("Connection closed while receiving data...");
-                this._startReconnecting(e);
+                this._recvLoopHandle = undefined;
                 return;
             }
             try {
                 message = await this._state.decryptMessageData(body);
             }
             catch (e) {
+                this._log.debug(`Error while receiving items from the network ${e}`);
                 if (e instanceof errors_1.TypeNotFoundError) {
                     // Received object which we don't know how to deserialize
                     this._log.info(`Type ${e.invalidConstructorId} not found, remaining data ${e.remaining}`);
@@ -58937,30 +58890,25 @@ class MTProtoSender {
                 else if (e instanceof errors_1.InvalidBufferError) {
                     // 404 means that the server has "forgotten" our auth key and we need to create a new one.
                     if (e.code === 404) {
-                        this._log.warn(`Broken authorization key for dc ${this._dcId}; resetting`);
-                        if (this._updateCallback && this._isMainSender) {
-                            this._updateCallback(this._client, new _1.UpdateConnectionState(_1.UpdateConnectionState.broken));
-                        }
-                        else if (this._onConnectionBreak &&
-                            !this._isMainSender) {
-                            // Deletes the current sender from the object
-                            this._onConnectionBreak(this._dcId);
-                        }
-                        await this._disconnect(e);
+                        this._handleBadAuthKey();
                     }
                     else {
                         // this happens sometimes when telegram is having some internal issues.
                         // reconnecting should be enough usually
                         // since the data we sent and received is probably wrong now.
                         this._log.warn(`Invalid buffer ${e.code} for dc ${this._dcId}`);
-                        this._startReconnecting(e);
+                        this.reconnect();
                     }
+                    this._recvLoopHandle = undefined;
                     return;
                 }
                 else {
                     this._log.error("Unhandled error while receiving data");
-                    this._log.error(e);
-                    this._startReconnecting(e);
+                    if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
+                        console.log(e);
+                    }
+                    this.reconnect();
+                    this._recvLoopHandle = undefined;
                     return;
                 }
             }
@@ -58968,12 +58916,37 @@ class MTProtoSender {
                 await this._processMessage(message);
             }
             catch (e) {
-                this._log.error("Unhandled error while processing data");
-                this._log.error(e);
+                // `RPCError` errors except for 'AUTH_KEY_UNREGISTERED' should be handled by the client
+                if (e instanceof errors_1.RPCError) {
+                    if (e.message === "AUTH_KEY_UNREGISTERED" ||
+                        e.message === "SESSION_REVOKED") {
+                        // 'AUTH_KEY_UNREGISTERED' for the main sender is thrown when unauthorized and should be ignored
+                        this._handleBadAuthKey(true);
+                    }
+                }
+                else {
+                    this._log.error("Unhandled error while receiving data");
+                    if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
+                        console.log(e);
+                    }
+                }
             }
         }
+        this._recvLoopHandle = undefined;
     }
     // Response Handlers
+    _handleBadAuthKey(shouldSkipForMain = false) {
+        if (shouldSkipForMain && this._isMainSender) {
+            return;
+        }
+        this._log.warn(`Broken authorization key for dc ${this._dcId}, resetting...`);
+        if (this._isMainSender && this._updateCallback) {
+            this._updateCallback(this._client, new _1.UpdateConnectionState(_1.UpdateConnectionState.broken));
+        }
+        else if (!this._isMainSender && this._onConnectionBreak) {
+            this._onConnectionBreak(this._dcId);
+        }
+    }
     /**
      * Adds the given message to the list of messages that must be
      * acknowledged and dispatches control to different ``_handle_*``
@@ -58999,22 +58972,21 @@ class MTProtoSender {
      * @private
      */
     _popStates(msgId) {
-        let state = this._pendingState.get(msgId.toString());
+        var _a;
+        const state = this._pendingState.getAndDelete(msgId);
         if (state) {
-            this._pendingState.delete(msgId.toString());
             return [state];
         }
         const toPop = [];
-        for (const state of this._pendingState.values()) {
-            if (state.containerId && state.containerId.equals(msgId)) {
-                toPop.push(state.msgId);
+        for (const pendingState of this._pendingState.values()) {
+            if ((_a = pendingState.containerId) === null || _a === void 0 ? void 0 : _a.equals(msgId)) {
+                toPop.push(pendingState.msgId);
             }
         }
         if (toPop.length) {
             const temp = [];
             for (const x of toPop) {
-                temp.push(this._pendingState.get(x.toString()));
-                this._pendingState.delete(x.toString());
+                temp.push(this._pendingState.getAndDelete(x));
             }
             return temp;
         }
@@ -59034,48 +59006,47 @@ class MTProtoSender {
      * @private
      */
     _handleRPCResult(message) {
-        const RPCResult = message.obj;
-        const state = this._pendingState.get(RPCResult.reqMsgId.toString());
-        if (state) {
-            this._pendingState.delete(RPCResult.reqMsgId.toString());
-        }
-        this._log.debug(`Handling RPC result for message ${RPCResult.reqMsgId}`);
+        var _a;
+        const result = message.obj;
+        const state = this._pendingState.getAndDelete(result.reqMsgId);
+        this._log.debug(`Handling RPC result for message ${result.reqMsgId}`);
         if (!state) {
             // TODO We should not get responses to things we never sent
             // However receiving a File() with empty bytes is "common".
             // See #658, #759 and #958. They seem to happen in a container
             // which contain the real response right after.
             try {
-                const reader = new extensions_1.BinaryReader(RPCResult.body);
+                const reader = new extensions_1.BinaryReader(result.body);
                 if (!(reader.tgReadObject() instanceof tl_1.Api.upload.File)) {
-                    throw new Error("Not an upload.File");
+                    throw new errors_1.TypeNotFoundError(0, Buffer.alloc(0));
                 }
             }
             catch (e) {
-                this._log.error(e);
                 if (e instanceof errors_1.TypeNotFoundError) {
-                    this._log.info(`Received response without parent request: ${RPCResult.body}`);
+                    this._log.info(`Received response without parent request: ${result.body}`);
                     return;
                 }
-                else {
-                    throw e;
-                }
+                throw e;
             }
             return;
         }
-        if (RPCResult.error && state.msgId) {
-            const error = (0, errors_1.RPCMessageToError)(RPCResult.error, state.request);
-            this._sendQueue.append(new RequestState_1.RequestState(new tl_1.Api.MsgsAck({ msgIds: [state.msgId] })));
+        if (result.error) {
+            // eslint-disable-next-line new-cap
+            const error = (0, errors_1.RPCMessageToError)(result.error, state.request);
+            this._sendQueue.append(new RequestState_1.RequestState(new MsgsAck({ msgIds: [state.msgId] })));
             state.reject(error);
+            throw error;
         }
         else {
             try {
-                const reader = new extensions_1.BinaryReader(RPCResult.body);
+                const reader = new extensions_1.BinaryReader(result.body);
                 const read = state.request.readResult(reader);
+                this._log.debug(`Handling RPC result ${(_a = read === null || read === void 0 ? void 0 : read.constructor) === null || _a === void 0 ? void 0 : _a.name}`);
                 state.resolve(read);
             }
-            catch (e) {
-                state.reject(e);
+            catch (err) {
+                state.reject(err);
+                throw err;
             }
         }
     }
@@ -59231,34 +59202,9 @@ class MTProtoSender {
         this._state.salt = message.obj.serverSalt;
     }
     /**
-     * Handles a server acknowledge about our messages. Normally
-     * these can be ignored except in the case of ``auth.logOut``:
-     *
-     *     auth.logOut#5717da40 = Bool;
-     *
-     * Telegram doesn't seem to send its result so we need to confirm
-     * it manually. No other request is known to have this behaviour.
-
-     * Since the ID of sent messages consisting of a container is
-     * never returned (unless on a bad notification), this method
-     * also removes containers messages when any of their inner
-     * messages are acknowledged.
-
-     * @param message
-     * @returns {Promise<void>}
-     * @private
+     * Handles a server acknowledge about our messages. Normally these can be ignored
      */
-    async _handleAck(message) {
-        const ack = message.obj;
-        this._log.debug(`Handling acknowledge for ${ack.msgIds}`);
-        for (const msgId of ack.msgIds) {
-            const state = this._pendingState.get(msgId);
-            if (state && state.request instanceof tl_1.Api.auth.LogOut) {
-                this._pendingState.delete(msgId);
-                state.resolve(true);
-            }
-        }
-    }
+    _handleAck() { }
     /**
      * Handles future salt results, which don't come inside a
      * ``rpc_result`` but are still sent through a request:
@@ -59269,12 +59215,9 @@ class MTProtoSender {
      * @private
      */
     async _handleFutureSalts(message) {
-        // TODO save these salts and automatically adjust to the
-        // correct one whenever the salt in use expires.
         this._log.debug(`Handling future salts for message ${message.msgId}`);
-        const state = this._pendingState.get(message.msgId.toString());
+        const state = this._pendingState.getAndDelete(message.msgId);
         if (state) {
-            this._pendingState.delete(message.msgId.toString());
             state.resolve(message.obj);
         }
     }
@@ -59298,99 +59241,49 @@ class MTProtoSender {
      * @private
      */
     async _handleMsgAll(message) { }
-    async _reconnect(lastError) {
+    reconnect() {
+        if (this._userConnected && !this.isReconnecting) {
+            this.isReconnecting = true;
+            // we want to wait a second between each reconnect try to not flood the server with reconnects
+            // in case of internal server issues.
+            (0, Helpers_1.sleep)(1000).then(() => {
+                this._log.info("Started reconnecting");
+                this._reconnect();
+            });
+        }
+    }
+    async _reconnect() {
         this._log.debug("Closing current connection...");
-        await this._connection.disconnect();
-        this._cancelLoops();
-        this._reconnecting = false;
+        try {
+            this._log.warn("[Reconnect] Closing current connection...");
+            await this._disconnect();
+        }
+        catch (err) {
+            this._log.warn("Error happened while disconnecting");
+            if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
+                console.error(err);
+            }
+        }
+        this._sendQueue.clear();
         this._state.reset();
-        let attempt;
-        let ok = true;
-        for (attempt = 0; attempt < this._retries; attempt++) {
-            try {
-                await this._connect();
-                await (0, Helpers_1.sleep)(1000);
-                this._sendQueue.extend([...this._pendingState.values()]);
-                this._pendingState.clear();
-                if (this._autoReconnectCallback) {
-                    this._autoReconnectCallback();
-                }
-                break;
-            }
-            catch (err) {
-                if (attempt == this._retries - 1) {
-                    ok = false;
-                }
-                if (err instanceof errors_1.InvalidBufferError) {
-                    if (err.code === 404) {
-                        this._log.warn(`Broken authorization key for dc ${this._dcId}; resetting`);
-                        await this.authKey.setKey(undefined);
-                        if (this._authKeyCallback) {
-                            await this._authKeyCallback(undefined);
-                        }
-                        ok = false;
-                        break;
-                    }
-                    else {
-                        // this happens sometimes when telegram is having some internal issues.
-                        // since the data we sent and received is probably wrong now.
-                        this._log.warn(`Invalid buffer ${err.code} for dc ${this._dcId}`);
-                    }
-                }
-                this._log.error(`Unexpected exception reconnecting on attempt ${attempt}`);
-                await (0, Helpers_1.sleep)(this._delay);
-                lastError = err;
-            }
-        }
-        if (!ok) {
-            this._log.error(`Automatic reconnection failed ${attempt} time(s)`);
-            await this._disconnect(lastError ? lastError : undefined);
-        }
-    }
-    async _tryConnect(attempt) {
-        try {
-            this._log.debug(`Connection attempt ${attempt}...`);
-            await this._connection.connect();
-            this._log.debug("Connection success!");
-            return true;
-        }
-        catch (err) {
-            this._log.warn(`Attempt ${attempt} at connecting failed`);
-            if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
-                console.error(err);
-            }
-            await (0, Helpers_1.sleep)(this._delay);
-            return false;
-        }
-    }
-    async _tryGenAuthKey(attempt) {
-        const plain = new MTProtoPlainSender_1.MTProtoPlainSender(this._connection, this._log);
-        try {
-            this._log.debug(`New auth_key attempt ${attempt}...`);
-            this._log.debug("New auth_key attempt ...");
-            const res = await (0, Authenticator_1.doAuthentication)(plain, this._log);
-            this._log.debug("Generated new auth_key successfully");
-            await this.authKey.setKey(res.authKey);
-            this._state.timeOffset = res.timeOffset;
-            if (this._authKeyCallback) {
-                await this._authKeyCallback(this.authKey, this._dcId);
-            }
-            this._log.debug("auth_key generation success!");
-            return true;
-        }
-        catch (err) {
-            this._log.warn(`Attempt ${attempt} at generating auth key failed`);
-            if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
-                console.error(err);
-            }
-            return false;
-        }
-    }
-    _startReconnecting(error) {
-        this._log.info(`Starting reconnect...`);
-        if (this._userConnected && !this._reconnecting) {
-            this._reconnecting = true;
-            this._reconnect(error);
+        const connection = this._connection;
+        // For some reason reusing existing connection caused stuck requests
+        // @ts-ignore
+        const newConnection = new connection.constructor({
+            ip: connection._ip,
+            port: connection._port,
+            dcId: connection._dcId,
+            loggers: connection._log,
+            proxy: connection._proxy,
+            testServers: connection._testServers,
+            socket: this._client.networkSocket,
+        });
+        await this.connect(newConnection, true);
+        this.isReconnecting = false;
+        this._sendQueue.prepend(this._pendingState.values());
+        this._pendingState.clear();
+        if (this._autoReconnectCallback) {
+            await this._autoReconnectCallback();
         }
     }
 }
@@ -59410,7 +59303,8 @@ MTProtoSender.DEFAULT_OPTIONS = {
     securityChecks: true,
 };
 
-},{"../Helpers":295,"../crypto/AuthKey":317,"../errors":329,"../extensions":342,"../extensions/Logger":337,"../tl":389,"../tl/core":375,"./":359,"./Authenticator":348,"./MTProtoPlainSender":349,"./MTProtoState":351,"./RequestState":352,"async-mutex":223,"big-integer":226,"real-cancellable-promise":280}],351:[function(require,module,exports){
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"../Helpers":294,"../crypto/AuthKey":316,"../errors":328,"../extensions":343,"../extensions/Logger":337,"../extensions/PendingState":339,"../tl":390,"../tl/core":376,"./":360,"./Authenticator":349,"./MTProtoPlainSender":350,"./MTProtoState":352,"./RequestState":353,"async-mutex":223,"big-integer":226,"buffer":69}],352:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -59681,18 +59575,35 @@ class MTProtoState {
 exports.MTProtoState = MTProtoState;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../":346,"../Helpers":295,"../crypto/IGE":320,"../errors":329,"../extensions":342,"../tl":389,"../tl/core":375,"big-integer":226,"buffer":69}],352:[function(require,module,exports){
+},{"../":347,"../Helpers":294,"../crypto/IGE":319,"../errors":328,"../extensions":343,"../tl":390,"../tl/core":376,"big-integer":226,"buffer":69}],353:[function(require,module,exports){
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RequestState = void 0;
+const Deferred_1 = __importDefault(require("../extensions/Deferred"));
 class RequestState {
-    constructor(request, after = undefined) {
+    constructor(request) {
         this.containerId = undefined;
         this.msgId = undefined;
         this.request = request;
         this.data = request.getBytes();
-        this.after = after;
+        this.after = undefined;
         this.result = undefined;
+        this.finished = new Deferred_1.default();
+        this.resetPromise();
+    }
+    isReady() {
+        if (!this.after) {
+            return true;
+        }
+        return this.after.finished.promise;
+    }
+    resetPromise() {
+        var _a;
+        // Prevent stuck await
+        (_a = this.reject) === null || _a === void 0 ? void 0 : _a.call(this);
         this.promise = new Promise((resolve, reject) => {
             this.resolve = resolve;
             this.reject = reject;
@@ -59701,12 +59612,11 @@ class RequestState {
 }
 exports.RequestState = RequestState;
 
-},{}],353:[function(require,module,exports){
+},{"../extensions/Deferred":336}],354:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ObfuscatedConnection = exports.PacketCodec = exports.Connection = void 0;
 const extensions_1 = require("../../extensions");
-const real_cancellable_promise_1 = require("real-cancellable-promise");
 /**
  * The `Connection` class is a wrapper around ``asyncio.open_connection``.
  *
@@ -59746,22 +59656,17 @@ class Connection {
     async connect() {
         await this._connect();
         this._connected = true;
-        this._sendTask = this._sendLoop();
+        if (!this._sendTask) {
+            this._sendTask = this._sendLoop();
+        }
         this._recvTask = this._recvLoop();
     }
-    _cancelLoops() {
-        this.recvCancel.cancel();
-        this.sendCancel.cancel();
-    }
     async disconnect() {
+        if (!this._connected) {
+            return;
+        }
         this._connected = false;
-        this._cancelLoops();
-        try {
-            await this.socket.close();
-        }
-        catch (e) {
-            this._log.error("error while closing socket connection");
-        }
+        void this._recvArray.push(undefined);
     }
     async send(data) {
         if (!this._connected) {
@@ -59772,7 +59677,8 @@ class Connection {
     async recv() {
         while (this._connected) {
             const result = await this._recvArray.pop();
-            if (result && result.length) {
+            // null = sentinel value = keep trying
+            if (result) {
                 return result;
             }
         }
@@ -59781,46 +59687,37 @@ class Connection {
     async _sendLoop() {
         try {
             while (this._connected) {
-                this.sendCancel = (0, real_cancellable_promise_1.pseudoCancellable)(this._sendArray.pop());
-                const data = await this.sendCancel;
+                const data = await this._sendArray.pop();
                 if (!data) {
-                    continue;
+                    this._sendTask = undefined;
+                    return;
                 }
                 await this._send(data);
             }
         }
         catch (e) {
-            if (e instanceof real_cancellable_promise_1.Cancellation) {
-                return;
-            }
             this._log.info("The server closed the connection while sending");
-            await this.disconnect();
         }
+    }
+    isConnected() {
+        return this._connected;
     }
     async _recvLoop() {
         let data;
         while (this._connected) {
             try {
-                this.recvCancel = (0, real_cancellable_promise_1.pseudoCancellable)(this._recv());
-                data = await this.recvCancel;
+                data = await this._recv();
+                if (!data) {
+                    throw new Error("no data received");
+                }
             }
             catch (e) {
-                if (e instanceof real_cancellable_promise_1.Cancellation) {
-                    return;
-                }
-                this._log.info("The server closed the connection");
-                await this.disconnect();
-                if (!this._recvArray._queue.length) {
-                    await this._recvArray.push(undefined);
-                }
-                break;
+                this._log.info("connection closed");
+                // await this._recvArray.push()
+                this.disconnect();
+                return;
             }
-            try {
-                await this._recvArray.push(data);
-            }
-            catch (e) {
-                break;
-            }
+            await this._recvArray.push(data);
         }
     }
     async _initConn() {
@@ -59873,7 +59770,7 @@ class PacketCodec {
 }
 exports.PacketCodec = PacketCodec;
 
-},{"../../extensions":342,"real-cancellable-promise":280}],354:[function(require,module,exports){
+},{"../../extensions":343}],355:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -59935,7 +59832,7 @@ class ConnectionTCPAbridged extends Connection_1.Connection {
 exports.ConnectionTCPAbridged = ConnectionTCPAbridged;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../../Helpers":295,"./Connection":353,"big-integer":226,"buffer":69}],355:[function(require,module,exports){
+},{"../../Helpers":294,"./Connection":354,"big-integer":226,"buffer":69}],356:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -59993,7 +59890,7 @@ class ConnectionTCPFull extends Connection_1.Connection {
 exports.ConnectionTCPFull = ConnectionTCPFull;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../../Helpers":295,"../../errors":329,"./Connection":353,"buffer":69}],356:[function(require,module,exports){
+},{"../../Helpers":294,"../../errors":328,"./Connection":354,"buffer":69}],357:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -60118,7 +60015,7 @@ class ConnectionTCPMTProxyAbridged extends TCPMTProxy {
 exports.ConnectionTCPMTProxyAbridged = ConnectionTCPMTProxyAbridged;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../../Helpers":295,"../../crypto/CTR":318,"./Connection":353,"./TCPAbridged":354,"buffer":69}],357:[function(require,module,exports){
+},{"../../Helpers":294,"../../crypto/CTR":317,"./Connection":354,"./TCPAbridged":355,"buffer":69}],358:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -60200,7 +60097,7 @@ class ConnectionTCPObfuscated extends Connection_1.ObfuscatedConnection {
 exports.ConnectionTCPObfuscated = ConnectionTCPObfuscated;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../../Helpers":295,"../../crypto/CTR":318,"./Connection":353,"./TCPAbridged":354,"buffer":69}],358:[function(require,module,exports){
+},{"../../Helpers":294,"../../crypto/CTR":317,"./Connection":354,"./TCPAbridged":355,"buffer":69}],359:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ConnectionTCPObfuscated = exports.ConnectionTCPAbridged = exports.ConnectionTCPFull = exports.Connection = void 0;
@@ -60213,7 +60110,7 @@ Object.defineProperty(exports, "ConnectionTCPAbridged", { enumerable: true, get:
 var TCPObfuscated_1 = require("./TCPObfuscated");
 Object.defineProperty(exports, "ConnectionTCPObfuscated", { enumerable: true, get: function () { return TCPObfuscated_1.ConnectionTCPObfuscated; } });
 
-},{"./Connection":353,"./TCPAbridged":354,"./TCPFull":355,"./TCPObfuscated":357}],359:[function(require,module,exports){
+},{"./Connection":354,"./TCPAbridged":355,"./TCPFull":356,"./TCPObfuscated":358}],360:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ConnectionTCPObfuscated = exports.ConnectionTCPAbridged = exports.ConnectionTCPFull = exports.Connection = exports.UpdateConnectionState = exports.MTProtoSender = exports.doAuthentication = exports.MTProtoPlainSender = void 0;
@@ -60238,7 +60135,7 @@ Object.defineProperty(exports, "ConnectionTCPFull", { enumerable: true, get: fun
 Object.defineProperty(exports, "ConnectionTCPAbridged", { enumerable: true, get: function () { return connection_1.ConnectionTCPAbridged; } });
 Object.defineProperty(exports, "ConnectionTCPObfuscated", { enumerable: true, get: function () { return connection_1.ConnectionTCPObfuscated; } });
 
-},{"./Authenticator":348,"./MTProtoPlainSender":349,"./MTProtoSender":350,"./connection":358}],360:[function(require,module,exports){
+},{"./Authenticator":349,"./MTProtoPlainSender":350,"./MTProtoSender":351,"./connection":359}],361:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isNode = exports.isBrowser = exports.isDeno = void 0;
@@ -60246,7 +60143,7 @@ exports.isDeno = "Deno" in globalThis;
 exports.isBrowser = !exports.isDeno && typeof window !== "undefined";
 exports.isNode = !exports.isBrowser;
 
-},{}],361:[function(require,module,exports){
+},{}],362:[function(require,module,exports){
 "use strict";
 var __asyncValues = (this && this.__asyncValues) || function (o) {
     if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
@@ -60355,7 +60252,7 @@ class RequestIter {
 }
 exports.RequestIter = RequestIter;
 
-},{"./":346,"./Helpers":295}],362:[function(require,module,exports){
+},{"./":347,"./Helpers":294}],363:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Session = void 0;
@@ -60363,7 +60260,7 @@ class Session {
 }
 exports.Session = Session;
 
-},{}],363:[function(require,module,exports){
+},{}],364:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -60637,7 +60534,7 @@ class MemorySession extends Abstract_1.Session {
 }
 exports.MemorySession = MemorySession;
 
-},{"../":346,"../Helpers":295,"../Utils":297,"../tl":389,"./Abstract":362,"big-integer":226}],364:[function(require,module,exports){
+},{"../":347,"../Helpers":294,"../Utils":296,"../tl":390,"./Abstract":363,"big-integer":226}],365:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -60715,7 +60612,7 @@ class StoreSession extends Memory_1.MemorySession {
 exports.StoreSession = StoreSession;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../crypto/AuthKey":317,"./Memory":363,"./localStorage":367,"buffer":69,"store2":293}],365:[function(require,module,exports){
+},{"../crypto/AuthKey":316,"./Memory":364,"./localStorage":368,"buffer":69,"store2":292}],366:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -60835,7 +60732,7 @@ class StringSession extends Memory_1.MemorySession {
 exports.StringSession = StringSession;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../crypto/AuthKey":317,"../extensions":342,"./Memory":363,"buffer":69}],366:[function(require,module,exports){
+},{"../crypto/AuthKey":316,"../extensions":343,"./Memory":364,"buffer":69}],367:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Session = exports.StoreSession = exports.StringSession = exports.MemorySession = void 0;
@@ -60850,17 +60747,17 @@ Object.defineProperty(exports, "Session", { enumerable: true, get: function () {
 // @ts-ignore
 //export {CacheApiSession} from './CacheApiSession';
 
-},{"./Abstract":362,"./Memory":363,"./StoreSession":364,"./StringSession":365}],367:[function(require,module,exports){
+},{"./Abstract":363,"./Memory":364,"./StoreSession":365,"./StringSession":366}],368:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LocalStorage = void 0;
 exports.LocalStorage = require("node-localstorage").LocalStorage;
 
-},{"node-localstorage":263}],368:[function(require,module,exports){
+},{"node-localstorage":263}],369:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.tlobjects = exports.LAYER = void 0;
-exports.LAYER = 158;
+exports.LAYER = 160;
 const _1 = require("./");
 const tlobjects = {};
 exports.tlobjects = tlobjects;
@@ -60875,7 +60772,7 @@ for (const tl of Object.values(_1.Api)) {
     }
 }
 
-},{"./":389}],369:[function(require,module,exports){
+},{"./":390}],370:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 const { inspect } = require("../inspect");
@@ -61386,10 +61283,9 @@ const api = buildApiFromTlSchema();
 module.exports = { Api: api };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../Helpers":295,"../inspect":347,"./apiTl.js":370,"./generationHelpers":388,"./schemaTl.js":391,"big-integer":226,"buffer":69}],370:[function(require,module,exports){
+},{"../Helpers":294,"../inspect":348,"./apiTl.js":371,"./generationHelpers":389,"./schemaTl.js":392,"big-integer":226,"buffer":69}],371:[function(require,module,exports){
 "use strict";
-module.exports = `
-boolFalse#bc799737 = Bool;
+module.exports = `boolFalse#bc799737 = Bool;
 boolTrue#997275b5 = Bool;
 true#3fedd339 = True;
 vector#1cb5c415 {t:Type} # [ t ] = Vector t;
@@ -61424,6 +61320,7 @@ inputMediaInvoice#8eb5a6d5 flags:# title:string description:string photo:flags.0
 inputMediaGeoLive#971fa843 flags:# stopped:flags.0?true geo_point:InputGeoPoint heading:flags.2?int period:flags.1?int proximity_notification_radius:flags.3?int = InputMedia;
 inputMediaPoll#f94e5f1 flags:# poll:Poll correct_answers:flags.0?Vector<bytes> solution:flags.1?string solution_entities:flags.1?Vector<MessageEntity> = InputMedia;
 inputMediaDice#e66fbf7b emoticon:string = InputMedia;
+inputMediaStory#9a86b58f user_id:InputUser id:int = InputMedia;
 inputChatPhotoEmpty#1ca48f57 = InputChatPhoto;
 inputChatUploadedPhoto#bdcdaec0 flags:# file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double video_emoji_markup:flags.3?VideoSize = InputChatPhoto;
 inputChatPhoto#8953ad37 id:InputPhoto = InputChatPhoto;
@@ -61455,7 +61352,7 @@ storage.fileMov#4b09ebbc = storage.FileType;
 storage.fileMp4#b3cea0e4 = storage.FileType;
 storage.fileWebp#1081464c = storage.FileType;
 userEmpty#d3bc4b7a id:long = User;
-user#8f97c628 flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true min:flags.20?true bot_inline_geo:flags.21?true support:flags.23?true scam:flags.24?true apply_min_photo:flags.25?true fake:flags.26?true bot_attach_menu:flags.27?true premium:flags.28?true attach_menu_enabled:flags.29?true flags2:# bot_can_edit:flags2.1?true id:long access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?Vector<RestrictionReason> bot_inline_placeholder:flags.19?string lang_code:flags.22?string emoji_status:flags.30?EmojiStatus usernames:flags2.0?Vector<Username> = User;
+user#abb5f120 flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true min:flags.20?true bot_inline_geo:flags.21?true support:flags.23?true scam:flags.24?true apply_min_photo:flags.25?true fake:flags.26?true bot_attach_menu:flags.27?true premium:flags.28?true attach_menu_enabled:flags.29?true flags2:# bot_can_edit:flags2.1?true close_friend:flags2.2?true stories_hidden:flags2.3?true stories_unavailable:flags2.4?true id:long access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?Vector<RestrictionReason> bot_inline_placeholder:flags.19?string lang_code:flags.22?string emoji_status:flags.30?EmojiStatus usernames:flags2.0?Vector<Username> stories_max_id:flags2.5?int = User;
 userProfilePhotoEmpty#4f11bae1 = UserProfilePhoto;
 userProfilePhoto#82d1f706 flags:# has_video:flags.0?true personal:flags.2?true photo_id:long stripped_thumb:flags.1?bytes dc_id:int = UserProfilePhoto;
 userStatusEmpty#9d05049 = UserStatus;
@@ -61486,7 +61383,7 @@ messageMediaPhoto#695150d7 flags:# spoiler:flags.3?true photo:flags.0?Photo ttl_
 messageMediaGeo#56e0d474 geo:GeoPoint = MessageMedia;
 messageMediaContact#70322949 phone_number:string first_name:string last_name:string vcard:string user_id:long = MessageMedia;
 messageMediaUnsupported#9f84f49e = MessageMedia;
-messageMediaDocument#9cb070d7 flags:# nopremium:flags.3?true spoiler:flags.4?true document:flags.0?Document ttl_seconds:flags.2?int = MessageMedia;
+messageMediaDocument#4cf4d72d flags:# nopremium:flags.3?true spoiler:flags.4?true document:flags.0?Document alt_document:flags.5?Document ttl_seconds:flags.2?int = MessageMedia;
 messageMediaWebPage#a32dd600 webpage:WebPage = MessageMedia;
 messageMediaVenue#2ec0533f geo:GeoPoint title:string address:string provider:string venue_id:string venue_type:string = MessageMedia;
 messageMediaGame#fdb19008 game:Game = MessageMedia;
@@ -61494,6 +61391,7 @@ messageMediaInvoice#f6a548d3 flags:# shipping_address_requested:flags.1?true tes
 messageMediaGeoLive#b940c666 flags:# geo:GeoPoint heading:flags.0?int period:int proximity_notification_radius:flags.1?int = MessageMedia;
 messageMediaPoll#4bd6e798 poll:Poll results:PollResults = MessageMedia;
 messageMediaDice#3f7ee58b value:int emoticon:string = MessageMedia;
+messageMediaStory#cbb20d88 flags:# via_mention:flags.1?true user_id:long id:int story:flags.0?StoryItem = MessageMedia;
 messageActionEmpty#b6aef7b0 = MessageAction;
 messageActionChatCreate#bd47cbad title:string users:Vector<long> = MessageAction;
 messageActionChatEditTitle#b5a1ce5a title:string = MessageAction;
@@ -61555,8 +61453,8 @@ inputNotifyUsers#193b4417 = InputNotifyPeer;
 inputNotifyChats#4a95e84e = InputNotifyPeer;
 inputNotifyBroadcasts#b1db7c7e = InputNotifyPeer;
 inputNotifyForumTopic#5c467992 peer:InputPeer top_msg_id:int = InputNotifyPeer;
-inputPeerNotifySettings#df1f002b flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int sound:flags.3?NotificationSound = InputPeerNotifySettings;
-peerNotifySettings#a83b0426 flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int ios_sound:flags.3?NotificationSound android_sound:flags.4?NotificationSound other_sound:flags.5?NotificationSound = PeerNotifySettings;
+inputPeerNotifySettings#cacb6ae2 flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int sound:flags.3?NotificationSound stories_muted:flags.6?Bool stories_hide_sender:flags.7?Bool stories_sound:flags.8?NotificationSound = InputPeerNotifySettings;
+peerNotifySettings#99622c0c flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int ios_sound:flags.3?NotificationSound android_sound:flags.4?NotificationSound other_sound:flags.5?NotificationSound stories_muted:flags.6?Bool stories_hide_sender:flags.7?Bool stories_ios_sound:flags.8?NotificationSound stories_android_sound:flags.9?NotificationSound stories_other_sound:flags.10?NotificationSound = PeerNotifySettings;
 peerSettings#a518110d flags:# report_spam:flags.0?true add_contact:flags.1?true block_contact:flags.2?true share_contact:flags.3?true need_contacts_exception:flags.4?true report_geo:flags.5?true autoarchived:flags.7?true invite_members:flags.8?true request_chat_broadcast:flags.10?true geo_distance:flags.6?int request_chat_title:flags.9?string request_chat_date:flags.9?int = PeerSettings;
 wallPaper#a437c3ed id:long flags:# creator:flags.0?true default:flags.1?true pattern:flags.3?true dark:flags.4?true access_hash:long slug:string document:Document settings:flags.2?WallPaperSettings = WallPaper;
 wallPaperNoFile#e0804116 id:long flags:# default:flags.1?true dark:flags.4?true settings:flags.2?WallPaperSettings = WallPaper;
@@ -61570,7 +61468,7 @@ inputReportReasonGeoIrrelevant#dbd4feed = ReportReason;
 inputReportReasonFake#f5ddd6e7 = ReportReason;
 inputReportReasonIllegalDrugs#a8eb2be = ReportReason;
 inputReportReasonPersonalDetails#9ec7863d = ReportReason;
-userFull#93eadb53 flags:# blocked:flags.0?true phone_calls_available:flags.4?true phone_calls_private:flags.5?true can_pin_message:flags.7?true has_scheduled:flags.12?true video_calls_available:flags.13?true voice_messages_forbidden:flags.20?true translations_disabled:flags.23?true id:long about:flags.1?string settings:PeerSettings personal_photo:flags.21?Photo profile_photo:flags.2?Photo fallback_photo:flags.22?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo pinned_msg_id:flags.6?int common_chats_count:int folder_id:flags.11?int ttl_period:flags.14?int theme_emoticon:flags.15?string private_forward_name:flags.16?string bot_group_admin_rights:flags.17?ChatAdminRights bot_broadcast_admin_rights:flags.18?ChatAdminRights premium_gifts:flags.19?Vector<PremiumGiftOption> wallpaper:flags.24?WallPaper = UserFull;
+userFull#4fe1cc86 flags:# blocked:flags.0?true phone_calls_available:flags.4?true phone_calls_private:flags.5?true can_pin_message:flags.7?true has_scheduled:flags.12?true video_calls_available:flags.13?true voice_messages_forbidden:flags.20?true translations_disabled:flags.23?true stories_pinned_available:flags.26?true id:long about:flags.1?string settings:PeerSettings personal_photo:flags.21?Photo profile_photo:flags.2?Photo fallback_photo:flags.22?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo pinned_msg_id:flags.6?int common_chats_count:int folder_id:flags.11?int ttl_period:flags.14?int theme_emoticon:flags.15?string private_forward_name:flags.16?string bot_group_admin_rights:flags.17?ChatAdminRights bot_broadcast_admin_rights:flags.18?ChatAdminRights premium_gifts:flags.19?Vector<PremiumGiftOption> wallpaper:flags.24?WallPaper stories:flags.25?UserStories = UserFull;
 contact#145ade0b user_id:long mutual:Bool = Contact;
 importedContact#c13e3c50 user_id:long client_id:long = ImportedContact;
 contactStatus#16d9703b user_id:long status:UserStatus = ContactStatus;
@@ -61678,7 +61576,7 @@ updateDeleteScheduledMessages#90866cee peer:Peer messages:Vector<int> = Update;
 updateTheme#8216fba3 theme:Theme = Update;
 updateGeoLiveViewed#871fb939 peer:Peer msg_id:int = Update;
 updateLoginToken#564fe691 = Update;
-updateMessagePollVote#106395c9 poll_id:long user_id:long options:Vector<bytes> qts:int = Update;
+updateMessagePollVote#24f40e77 poll_id:long peer:Peer options:Vector<bytes> qts:int = Update;
 updateDialogFilter#26ffde7d flags:# id:int filter:flags.0?DialogFilter = Update;
 updateDialogFilterOrder#a5d72105 order:Vector<int> = Update;
 updateDialogFilters#3504914f = Update;
@@ -61718,6 +61616,9 @@ updateChannelPinnedTopics#fe198602 flags:# channel_id:long order:flags.0?Vector<
 updateUser#20529438 user_id:long = Update;
 updateAutoSaveSettings#ec05b097 = Update;
 updateGroupInvitePrivacyForbidden#ccf08ad6 user_id:long = Update;
+updateStory#205a4133 user_id:long story:StoryItem = Update;
+updateReadStories#feb5345a user_id:long max_id:int = Update;
+updateStoryID#1bf335b9 id:int random_id:long = Update;
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 updates.differenceEmpty#5d75a138 date:int seq:int = updates.Difference;
 updates.difference#f49ca0 new_messages:Vector<Message> new_encrypted_messages:Vector<EncryptedMessage> other_updates:Vector<Update> chats:Vector<Chat> users:Vector<User> state:updates.State = updates.Difference;
@@ -61797,6 +61698,7 @@ inputPrivacyKeyProfilePhoto#5719bacc = InputPrivacyKey;
 inputPrivacyKeyPhoneNumber#352dafa = InputPrivacyKey;
 inputPrivacyKeyAddedByPhone#d1219bdd = InputPrivacyKey;
 inputPrivacyKeyVoiceMessages#aee69d68 = InputPrivacyKey;
+inputPrivacyKeyAbout#3823cc40 = InputPrivacyKey;
 privacyKeyStatusTimestamp#bc2eab30 = PrivacyKey;
 privacyKeyChatInvite#500e6dfa = PrivacyKey;
 privacyKeyPhoneCall#3d662b7b = PrivacyKey;
@@ -61806,6 +61708,7 @@ privacyKeyProfilePhoto#96151fed = PrivacyKey;
 privacyKeyPhoneNumber#d19ae46d = PrivacyKey;
 privacyKeyAddedByPhone#42ffd42b = PrivacyKey;
 privacyKeyVoiceMessages#697f414 = PrivacyKey;
+privacyKeyAbout#a486b761 = PrivacyKey;
 inputPrivacyValueAllowContacts#d09e07b = InputPrivacyRule;
 inputPrivacyValueAllowAll#184b35ce = InputPrivacyRule;
 inputPrivacyValueAllowUsers#131cc67f users:Vector<InputUser> = InputPrivacyRule;
@@ -61814,6 +61717,7 @@ inputPrivacyValueDisallowAll#d66b66c9 = InputPrivacyRule;
 inputPrivacyValueDisallowUsers#90110467 users:Vector<InputUser> = InputPrivacyRule;
 inputPrivacyValueAllowChatParticipants#840649cf chats:Vector<long> = InputPrivacyRule;
 inputPrivacyValueDisallowChatParticipants#e94f0f86 chats:Vector<long> = InputPrivacyRule;
+inputPrivacyValueAllowCloseFriends#2f453e49 = InputPrivacyRule;
 privacyValueAllowContacts#fffe1bac = PrivacyRule;
 privacyValueAllowAll#65427b82 = PrivacyRule;
 privacyValueAllowUsers#b8905fb2 users:Vector<long> = PrivacyRule;
@@ -61822,12 +61726,13 @@ privacyValueDisallowAll#8b73e763 = PrivacyRule;
 privacyValueDisallowUsers#e4621141 users:Vector<long> = PrivacyRule;
 privacyValueAllowChatParticipants#6b134e8e chats:Vector<long> = PrivacyRule;
 privacyValueDisallowChatParticipants#41c87565 chats:Vector<long> = PrivacyRule;
+privacyValueAllowCloseFriends#f7e8d89b = PrivacyRule;
 account.privacyRules#50a04e45 rules:Vector<PrivacyRule> chats:Vector<Chat> users:Vector<User> = account.PrivacyRules;
 accountDaysTTL#b8d0afdf days:int = AccountDaysTTL;
 documentAttributeImageSize#6c37c15c w:int h:int = DocumentAttribute;
 documentAttributeAnimated#11b58939 = DocumentAttribute;
 documentAttributeSticker#6319d612 flags:# mask:flags.1?true alt:string stickerset:InputStickerSet mask_coords:flags.0?MaskCoords = DocumentAttribute;
-documentAttributeVideo#ef02ce6 flags:# round_message:flags.0?true supports_streaming:flags.1?true duration:int w:int h:int = DocumentAttribute;
+documentAttributeVideo#d38ff1c2 flags:# round_message:flags.0?true supports_streaming:flags.1?true nosound:flags.3?true duration:double w:int h:int preload_prefix_size:flags.2?int = DocumentAttribute;
 documentAttributeAudio#9852f9c6 flags:# voice:flags.10?true duration:int title:flags.0?string performer:flags.1?string waveform:flags.2?bytes = DocumentAttribute;
 documentAttributeFilename#15590068 file_name:string = DocumentAttribute;
 documentAttributeHasStickers#9801d2f7 = DocumentAttribute;
@@ -62259,7 +62164,7 @@ help.userInfo#1eb3758 message:string entities:Vector<MessageEntity> author:strin
 pollAnswer#6ca9c2e9 text:string option:bytes = PollAnswer;
 poll#86e18161 id:long flags:# closed:flags.0?true public_voters:flags.1?true multiple_choice:flags.2?true quiz:flags.3?true question:string answers:Vector<PollAnswer> close_period:flags.4?int close_date:flags.5?int = Poll;
 pollAnswerVoters#3b6ddad2 flags:# chosen:flags.0?true correct:flags.1?true option:bytes voters:int = PollAnswerVoters;
-pollResults#dcb82ea3 flags:# min:flags.0?true results:flags.1?Vector<PollAnswerVoters> total_voters:flags.2?int recent_voters:flags.3?Vector<long> solution:flags.4?string solution_entities:flags.4?Vector<MessageEntity> = PollResults;
+pollResults#7adf2420 flags:# min:flags.0?true results:flags.1?Vector<PollAnswerVoters> total_voters:flags.2?int recent_voters:flags.3?Vector<Peer> solution:flags.4?string solution_entities:flags.4?Vector<MessageEntity> = PollResults;
 chatOnlines#f041e250 onlines:int = ChatOnlines;
 statsURL#47a971e0 url:string = StatsURL;
 chatAdminRights#5fb224d5 flags:# change_info:flags.0?true post_messages:flags.1?true edit_messages:flags.2?true delete_messages:flags.3?true ban_users:flags.4?true invite_users:flags.5?true pin_messages:flags.7?true add_admins:flags.9?true anonymous:flags.10?true manage_call:flags.11?true other:flags.12?true manage_topics:flags.13?true = ChatAdminRights;
@@ -62271,7 +62176,7 @@ account.wallPapersNotModified#1c199183 = account.WallPapers;
 account.wallPapers#cdc3858c hash:long wallpapers:Vector<WallPaper> = account.WallPapers;
 codeSettings#ad253d78 flags:# allow_flashcall:flags.0?true current_number:flags.1?true allow_app_hash:flags.4?true allow_missed_call:flags.5?true allow_firebase:flags.7?true logout_tokens:flags.6?Vector<bytes> token:flags.8?string app_sandbox:flags.8?Bool = CodeSettings;
 wallPaperSettings#1dc1bca4 flags:# blur:flags.1?true motion:flags.2?true background_color:flags.0?int second_background_color:flags.4?int third_background_color:flags.5?int fourth_background_color:flags.6?int intensity:flags.3?int rotation:flags.4?int = WallPaperSettings;
-autoDownloadSettings#8efab953 flags:# disabled:flags.0?true video_preload_large:flags.1?true audio_preload_next:flags.2?true phonecalls_less_data:flags.3?true photo_size_max:int video_size_max:long file_size_max:long video_upload_maxbitrate:int = AutoDownloadSettings;
+autoDownloadSettings#baa57628 flags:# disabled:flags.0?true video_preload_large:flags.1?true audio_preload_next:flags.2?true phonecalls_less_data:flags.3?true stories_preload:flags.4?true photo_size_max:int video_size_max:long file_size_max:long video_upload_maxbitrate:int small_queue_active_operations_max:int large_queue_active_operations_max:int = AutoDownloadSettings;
 account.autoDownloadSettings#63cacf26 low:AutoDownloadSettings medium:AutoDownloadSettings high:AutoDownloadSettings = account.AutoDownloadSettings;
 emojiKeyword#d5b3b9f9 keyword:string emoticons:Vector<string> = EmojiKeyword;
 emojiKeywordDeleted#236df622 keyword:string emoticons:Vector<string> = EmojiKeyword;
@@ -62308,10 +62213,8 @@ baseThemeArctic#5b11125a = BaseTheme;
 inputThemeSettings#8fde504f flags:# message_colors_animated:flags.2?true base_theme:BaseTheme accent_color:int outbox_accent_color:flags.3?int message_colors:flags.0?Vector<int> wallpaper:flags.1?InputWallPaper wallpaper_settings:flags.1?WallPaperSettings = InputThemeSettings;
 themeSettings#fa58b6d4 flags:# message_colors_animated:flags.2?true base_theme:BaseTheme accent_color:int outbox_accent_color:flags.3?int message_colors:flags.0?Vector<int> wallpaper:flags.1?WallPaper = ThemeSettings;
 webPageAttributeTheme#54b56617 flags:# documents:flags.0?Vector<Document> settings:flags.1?ThemeSettings = WebPageAttribute;
-messageUserVote#34d247b4 user_id:long option:bytes date:int = MessageUserVote;
-messageUserVoteInputOption#3ca5b0ec user_id:long date:int = MessageUserVote;
-messageUserVoteMultiple#8a65e557 user_id:long options:Vector<bytes> date:int = MessageUserVote;
-messages.votesList#823f649 flags:# count:int votes:Vector<MessageUserVote> users:Vector<User> next_offset:flags.0?string = messages.VotesList;
+webPageAttributeStory#939a4671 flags:# user_id:long id:int story:flags.0?StoryItem = WebPageAttribute;
+messages.votesList#4899484e flags:# count:int votes:Vector<MessagePeerVote> chats:Vector<Chat> users:Vector<User> next_offset:flags.0?string = messages.VotesList;
 bankCardOpenUrl#f568028a url:string name:string = BankCardOpenUrl;
 payments.bankCardData#3e24e573 title:string open_urls:Vector<BankCardOpenUrl> = payments.BankCardData;
 dialogFilter#7438f7e8 flags:# contacts:flags.0?true non_contacts:flags.1?true groups:flags.2?true broadcasts:flags.3?true bots:flags.4?true exclude_muted:flags.11?true exclude_read:flags.12?true exclude_archived:flags.13?true id:int title:string emoticon:flags.25?string pinned_peers:Vector<InputPeer> include_peers:Vector<InputPeer> exclude_peers:Vector<InputPeer> = DialogFilter;
@@ -62335,7 +62238,7 @@ statsGroupTopPoster#9d04af9b user_id:long messages:int avg_chars:int = StatsGrou
 statsGroupTopAdmin#d7584c87 user_id:long deleted:int kicked:int banned:int = StatsGroupTopAdmin;
 statsGroupTopInviter#535f779d user_id:long invitations:int = StatsGroupTopInviter;
 stats.megagroupStats#ef7ff916 period:StatsDateRangeDays members:StatsAbsValueAndPrev messages:StatsAbsValueAndPrev viewers:StatsAbsValueAndPrev posters:StatsAbsValueAndPrev growth_graph:StatsGraph members_graph:StatsGraph new_members_by_source_graph:StatsGraph languages_graph:StatsGraph messages_graph:StatsGraph actions_graph:StatsGraph top_hours_graph:StatsGraph weekdays_graph:StatsGraph top_posters:Vector<StatsGroupTopPoster> top_admins:Vector<StatsGroupTopAdmin> top_inviters:Vector<StatsGroupTopInviter> users:Vector<User> = stats.MegagroupStats;
-globalPrivacySettings#bea2f424 flags:# archive_and_mute_new_noncontact_peers:flags.0?Bool = GlobalPrivacySettings;
+globalPrivacySettings#734c4ccb flags:# archive_and_mute_new_noncontact_peers:flags.0?true keep_archived_unmuted:flags.1?true keep_archived_folders:flags.2?true = GlobalPrivacySettings;
 help.countryCode#4203c5ef flags:# country_code:string prefixes:flags.0?Vector<string> patterns:flags.1?Vector<string> = help.CountryCode;
 help.country#c3878e23 flags:# hidden:flags.0?true iso2:string default_name:string name:flags.1?string country_codes:Vector<help.CountryCode> = help.Country;
 help.countriesListNotModified#93cc1f32 = help.CountriesList;
@@ -62344,6 +62247,7 @@ messageViews#455b853d flags:# views:flags.0?int forwards:flags.1?int replies:fla
 messages.messageViews#b6c4f543 views:Vector<MessageViews> chats:Vector<Chat> users:Vector<User> = messages.MessageViews;
 messages.discussionMessage#a6341782 flags:# messages:Vector<Message> max_id:flags.0?int read_inbox_max_id:flags.1?int read_outbox_max_id:flags.2?int unread_count:int chats:Vector<Chat> users:Vector<User> = messages.DiscussionMessage;
 messageReplyHeader#a6d57763 flags:# reply_to_scheduled:flags.2?true forum_topic:flags.3?true reply_to_msg_id:int reply_to_peer_id:flags.0?Peer reply_to_top_id:flags.1?int = MessageReplyHeader;
+messageReplyStoryHeader#9c98bfc1 user_id:long story_id:int = MessageReplyHeader;
 messageReplies#83d60fc2 flags:# comments:flags.0?true replies:int replies_pts:int recent_repliers:flags.1?Vector<Peer> channel_id:flags.0?long max_id:flags.2?int read_max_id:flags.3?int = MessageReplies;
 peerBlocked#e8fd8014 peer_id:Peer date:int = PeerBlocked;
 stats.messageStats#8999f295 views_graph:StatsGraph = stats.MessageStats;
@@ -62385,7 +62289,7 @@ botCommandScopePeerUser#a1321f3 peer:InputPeer user_id:InputUser = BotCommandSco
 account.resetPasswordFailedWait#e3779861 retry_date:int = account.ResetPasswordResult;
 account.resetPasswordRequestedWait#e9effc7d until_date:int = account.ResetPasswordResult;
 account.resetPasswordOk#e926d63e = account.ResetPasswordResult;
-sponsoredMessage#fc25b828 flags:# recommended:flags.5?true show_peer_photo:flags.6?true random_id:bytes from_id:flags.3?Peer chat_invite:flags.4?ChatInvite chat_invite_hash:flags.4?string channel_post:flags.2?int start_param:flags.0?string message:string entities:flags.1?Vector<MessageEntity> sponsor_info:flags.7?string additional_info:flags.8?string = SponsoredMessage;
+sponsoredMessage#daafff6b flags:# recommended:flags.5?true show_peer_photo:flags.6?true random_id:bytes from_id:flags.3?Peer chat_invite:flags.4?ChatInvite chat_invite_hash:flags.4?string channel_post:flags.2?int start_param:flags.0?string webpage:flags.9?SponsoredWebPage message:string entities:flags.1?Vector<MessageEntity> sponsor_info:flags.7?string additional_info:flags.8?string = SponsoredMessage;
 messages.sponsoredMessages#c9ee1d87 flags:# posts_between:flags.0?int messages:Vector<SponsoredMessage> chats:Vector<Chat> users:Vector<User> = messages.SponsoredMessages;
 messages.sponsoredMessagesEmpty#1839490f = messages.SponsoredMessages;
 searchResultsCalendarPeriod#c9b0539f date:int min_msg_id:int max_msg_id:int count:int = SearchResultsCalendarPeriod;
@@ -62402,7 +62306,7 @@ messages.messageReactionsList#31bd492d flags:# count:int reactions:Vector<Messag
 availableReaction#c077ec01 flags:# inactive:flags.0?true premium:flags.2?true reaction:string title:string static_icon:Document appear_animation:Document select_animation:Document activate_animation:Document effect_animation:Document around_animation:flags.1?Document center_icon:flags.1?Document = AvailableReaction;
 messages.availableReactionsNotModified#9f071957 = messages.AvailableReactions;
 messages.availableReactions#768e3aad hash:int reactions:Vector<AvailableReaction> = messages.AvailableReactions;
-messagePeerReaction#8c79b63c flags:# big:flags.0?true unread:flags.1?true peer_id:Peer date:int reaction:Reaction = MessagePeerReaction;
+messagePeerReaction#8c79b63c flags:# big:flags.0?true unread:flags.1?true my:flags.2?true peer_id:Peer date:int reaction:Reaction = MessagePeerReaction;
 groupCallStreamChannel#80eb48af channel:int scale:int last_timestamp_ms:long = GroupCallStreamChannel;
 phone.groupCallStreamChannels#d0e482b2 channels:Vector<GroupCallStreamChannel> = phone.GroupCallStreamChannels;
 phone.groupCallStreamRtmpUrl#2dbf3432 url:string key:string = phone.GroupCallStreamRtmpUrl;
@@ -62503,6 +62407,25 @@ chatlists.chatlistInviteAlready#fa87f659 filter_id:int missing_peers:Vector<Peer
 chatlists.chatlistInvite#1dcd839d flags:# title:string emoticon:flags.0?string peers:Vector<Peer> chats:Vector<Chat> users:Vector<User> = chatlists.ChatlistInvite;
 chatlists.chatlistUpdates#93bd878d missing_peers:Vector<Peer> chats:Vector<Chat> users:Vector<User> = chatlists.ChatlistUpdates;
 bots.botInfo#e8a775b0 name:string about:string description:string = bots.BotInfo;
+messagePeerVote#b6cc2d5c peer:Peer option:bytes date:int = MessagePeerVote;
+messagePeerVoteInputOption#74cda504 peer:Peer date:int = MessagePeerVote;
+messagePeerVoteMultiple#4628f6e6 peer:Peer options:Vector<bytes> date:int = MessagePeerVote;
+sponsoredWebPage#3db8ec63 flags:# url:string site_name:string photo:flags.0?Photo = SponsoredWebPage;
+storyViews#d36760cf flags:# views_count:int recent_viewers:flags.0?Vector<long> = StoryViews;
+storyItemDeleted#51e6ee4f id:int = StoryItem;
+storyItemSkipped#ffadc913 flags:# close_friends:flags.8?true id:int date:int expire_date:int = StoryItem;
+storyItem#562aa637 flags:# pinned:flags.5?true public:flags.7?true close_friends:flags.8?true min:flags.9?true noforwards:flags.10?true edited:flags.11?true contacts:flags.12?true selected_contacts:flags.13?true id:int date:int expire_date:int caption:flags.0?string entities:flags.1?Vector<MessageEntity> media:MessageMedia privacy:flags.2?Vector<PrivacyRule> views:flags.3?StoryViews = StoryItem;
+userStories#8611a200 flags:# user_id:long max_read_id:flags.0?int stories:Vector<StoryItem> = UserStories;
+stories.allStoriesNotModified#47e0a07e state:string = stories.AllStories;
+stories.allStories#839e0428 flags:# has_more:flags.0?true count:int state:string user_stories:Vector<UserStories> users:Vector<User> = stories.AllStories;
+stories.stories#4fe57df1 count:int stories:Vector<StoryItem> users:Vector<User> = stories.Stories;
+stories.userStories#37a6ff5f stories:UserStories users:Vector<User> = stories.UserStories;
+storyView#a71aacc2 user_id:long date:int = StoryView;
+stories.storyViewsList#fb3f77ac count:int views:Vector<StoryView> users:Vector<User> = stories.StoryViewsList;
+stories.storyViews#de9eed1d views:Vector<StoryViews> users:Vector<User> = stories.StoryViews;
+inputReplyToMessage#9c5386e4 flags:# reply_to_msg_id:int top_msg_id:flags.0?int = InputReplyTo;
+inputReplyToStory#15b0f283 user_id:InputUser story_id:int = InputReplyTo;
+exportedStoryLink#3fc9053b link:string = ExportedStoryLink;
 ---functions---
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
 invokeAfterMsgs#3dc4b4f0 {X:Type} msg_ids:Vector<long> query:!X = X;
@@ -62580,7 +62503,7 @@ account.resendPasswordEmail#7a7f2a15 = Bool;
 account.cancelPasswordEmail#c1cbd5b6 = Bool;
 account.getContactSignUpNotification#9f07c728 = Bool;
 account.setContactSignUpNotification#cff43f61 silent:Bool = Bool;
-account.getNotifyExceptions#53577479 flags:# compare_sound:flags.1?true peer:flags.0?InputNotifyPeer = Updates;
+account.getNotifyExceptions#53577479 flags:# compare_sound:flags.1?true compare_stories:flags.2?true peer:flags.0?InputNotifyPeer = Updates;
 account.getWallPaper#fc8ddbea wallpaper:InputWallPaper = WallPaper;
 account.uploadWallPaper#e39a8f03 flags:# for_chat:flags.0?true file:InputFile mime_type:string settings:WallPaperSettings = WallPaper;
 account.saveWallPaper#6c5a5b37 wallpaper:InputWallPaper unsave:Bool settings:WallPaperSettings = Bool;
@@ -62620,9 +62543,11 @@ account.getDefaultGroupPhotoEmojis#915860ae hash:long = EmojiList;
 account.getAutoSaveSettings#adcbbcda = account.AutoSaveSettings;
 account.saveAutoSaveSettings#d69b8361 flags:# users:flags.0?true chats:flags.1?true broadcasts:flags.2?true peer:flags.3?InputPeer settings:AutoSaveSettings = Bool;
 account.deleteAutoSaveExceptions#53bc0020 = Bool;
+account.invalidateSignInCodes#ca8ae8ba codes:Vector<string> = Bool;
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#b60f5918 id:InputUser = users.UserFull;
 users.setSecureValueErrors#90c894b5 id:InputUser errors:Vector<SecureValueError> = Bool;
+users.getStoriesMaxIDs#ca1cb9ab id:Vector<InputUser> = Vector<int>;
 contacts.getContactIDs#7adc669d hash:long = Vector<int>;
 contacts.getStatuses#c4a353ee = Vector<ContactStatus>;
 contacts.getContacts#5dd69e12 hash:long = contacts.Contacts;
@@ -62646,6 +62571,8 @@ contacts.blockFromReplies#29a8962c flags:# delete_message:flags.0?true delete_hi
 contacts.resolvePhone#8af94344 phone:string = contacts.ResolvedPeer;
 contacts.exportContactToken#f8654027 = ExportedContactToken;
 contacts.importContactToken#13005788 token:string = User;
+contacts.editCloseFriends#ba6705f0 id:Vector<long> = Bool;
+contacts.toggleStoriesHidden#753fb865 id:InputUser hidden:Bool = Bool;
 messages.getMessages#63c66506 id:Vector<InputMessage> = messages.Messages;
 messages.getDialogs#a0f4cb4f flags:# exclude_pinned:flags.0?true folder_id:flags.1?int offset_date:int offset_id:int offset_peer:InputPeer limit:int hash:long = messages.Dialogs;
 messages.getHistory#4423e6c5 peer:InputPeer offset_id:int offset_date:int add_offset:int limit:int max_id:int min_id:int hash:long = messages.Messages;
@@ -62655,8 +62582,8 @@ messages.deleteHistory#b08f922a flags:# just_clear:flags.0?true revoke:flags.1?t
 messages.deleteMessages#e58e95d2 flags:# revoke:flags.0?true id:Vector<int> = messages.AffectedMessages;
 messages.receivedMessages#5a954c0 max_id:int = Vector<ReceivedNotifyMessage>;
 messages.setTyping#58943ee2 flags:# peer:InputPeer top_msg_id:flags.0?int action:SendMessageAction = Bool;
-messages.sendMessage#1cc20387 flags:# no_webpage:flags.1?true silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to_msg_id:flags.0?int top_msg_id:flags.9?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
-messages.sendMedia#7547c966 flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to_msg_id:flags.0?int top_msg_id:flags.9?int media:InputMedia message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.sendMessage#280d096f flags:# no_webpage:flags.1?true silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to:flags.0?InputReplyTo message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.sendMedia#72ccc23d flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to:flags.0?InputReplyTo media:InputMedia message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 messages.forwardMessages#c661bbc4 flags:# silent:flags.5?true background:flags.6?true with_my_score:flags.8?true drop_author:flags.11?true drop_media_captions:flags.12?true noforwards:flags.14?true from_peer:InputPeer id:Vector<int> random_id:Vector<long> to_peer:InputPeer top_msg_id:flags.9?int schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 messages.reportSpam#cf1592db peer:InputPeer = Bool;
 messages.getPeerSettings#efd9a6a2 peer:InputPeer = messages.PeerSettings;
@@ -62700,7 +62627,7 @@ messages.getSavedGifs#5cf09635 hash:long = messages.SavedGifs;
 messages.saveGif#327a30cb id:InputDocument unsave:Bool = Bool;
 messages.getInlineBotResults#514e999d flags:# bot:InputUser peer:InputPeer geo_point:flags.0?InputGeoPoint query:string offset:string = messages.BotResults;
 messages.setInlineBotResults#bb12a419 flags:# gallery:flags.0?true private:flags.1?true query_id:long results:Vector<InputBotInlineResult> cache_time:int next_offset:flags.2?string switch_pm:flags.3?InlineBotSwitchPM switch_webview:flags.4?InlineBotWebView = Bool;
-messages.sendInlineBotResult#d3fbdccb flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true hide_via:flags.11?true peer:InputPeer reply_to_msg_id:flags.0?int top_msg_id:flags.9?int random_id:long query_id:long id:string schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.sendInlineBotResult#f7bc68ba flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true hide_via:flags.11?true peer:InputPeer reply_to:flags.0?InputReplyTo random_id:long query_id:long id:string schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 messages.getMessageEditData#fda68d36 peer:InputPeer id:int = messages.MessageEditData;
 messages.editMessage#48f71778 flags:# no_webpage:flags.1?true peer:InputPeer id:int message:flags.11?string media:flags.14?InputMedia reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.15?int = Updates;
 messages.editInlineBotMessage#83557dba flags:# no_webpage:flags.1?true id:InputBotInlineMessageID message:flags.11?string media:flags.14?InputMedia reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Bool;
@@ -62722,7 +62649,6 @@ messages.setInlineGameScore#15ad9f64 flags:# edit_message:flags.0?true force:fla
 messages.getGameHighScores#e822649d peer:InputPeer id:int user_id:InputUser = messages.HighScores;
 messages.getInlineGameHighScores#f635e1b id:InputBotInlineMessageID user_id:InputUser = messages.HighScores;
 messages.getCommonChats#e40ca104 user_id:InputUser max_id:long limit:int = messages.Chats;
-messages.getAllChats#875f74be except_ids:Vector<long> = messages.Chats;
 messages.getWebPage#32ca8f91 url:string hash:int = WebPage;
 messages.toggleDialogPin#a731e257 flags:# pinned:flags.0?true peer:InputDialogPeer = Bool;
 messages.reorderPinnedDialogs#3b1adf37 flags:# force:flags.0?true folder_id:int order:Vector<InputDialogPeer> = Bool;
@@ -62730,13 +62656,13 @@ messages.getPinnedDialogs#d6b94df2 folder_id:int = messages.PeerDialogs;
 messages.setBotShippingResults#e5f672fa flags:# query_id:long error:flags.0?string shipping_options:flags.1?Vector<ShippingOption> = Bool;
 messages.setBotPrecheckoutResults#9c2dd95 flags:# success:flags.1?true query_id:long error:flags.0?string = Bool;
 messages.uploadMedia#519bc2b1 peer:InputPeer media:InputMedia = MessageMedia;
-messages.sendScreenshotNotification#c97df020 peer:InputPeer reply_to_msg_id:int random_id:long = Updates;
+messages.sendScreenshotNotification#a1405817 peer:InputPeer reply_to:InputReplyTo random_id:long = Updates;
 messages.getFavedStickers#4f1aaa9 hash:long = messages.FavedStickers;
 messages.faveSticker#b9ffc55b id:InputDocument unfave:Bool = Bool;
 messages.getUnreadMentions#f107e790 flags:# peer:InputPeer top_msg_id:flags.0?int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
 messages.readMentions#36e5bf4d flags:# peer:InputPeer top_msg_id:flags.0?int = messages.AffectedHistory;
 messages.getRecentLocations#702a40e0 peer:InputPeer limit:int hash:long = messages.Messages;
-messages.sendMultiMedia#b6f11a1c flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to_msg_id:flags.0?int top_msg_id:flags.9?int multi_media:Vector<InputSingleMedia> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.sendMultiMedia#456e8987 flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to:flags.0?InputReplyTo multi_media:Vector<InputSingleMedia> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 messages.uploadEncryptedFile#5057c497 peer:InputEncryptedChat file:InputEncryptedFile = EncryptedFile;
 messages.searchStickerSets#35705b8a flags:# exclude_featured:flags.0?true q:string hash:long = messages.FoundStickerSets;
 messages.getSplitRanges#1cff7e08 = Vector<MessageRange>;
@@ -62808,8 +62734,8 @@ messages.searchSentMedia#107e31a0 q:string filter:MessagesFilter limit:int = mes
 messages.getAttachMenuBots#16fcc2cb hash:long = AttachMenuBots;
 messages.getAttachMenuBot#77216192 bot:InputUser = AttachMenuBotsBot;
 messages.toggleBotInAttachMenu#69f59d69 flags:# write_allowed:flags.0?true bot:InputUser enabled:Bool = Bool;
-messages.requestWebView#178b480b flags:# from_bot_menu:flags.4?true silent:flags.5?true peer:InputPeer bot:InputUser url:flags.1?string start_param:flags.3?string theme_params:flags.2?DataJSON platform:string reply_to_msg_id:flags.0?int top_msg_id:flags.9?int send_as:flags.13?InputPeer = WebViewResult;
-messages.prolongWebView#7ff34309 flags:# silent:flags.5?true peer:InputPeer bot:InputUser query_id:long reply_to_msg_id:flags.0?int top_msg_id:flags.9?int send_as:flags.13?InputPeer = Bool;
+messages.requestWebView#269dc2c1 flags:# from_bot_menu:flags.4?true silent:flags.5?true peer:InputPeer bot:InputUser url:flags.1?string start_param:flags.3?string theme_params:flags.2?DataJSON platform:string reply_to:flags.0?InputReplyTo send_as:flags.13?InputPeer = WebViewResult;
+messages.prolongWebView#b0d81a83 flags:# silent:flags.5?true peer:InputPeer bot:InputUser query_id:long reply_to:flags.0?InputReplyTo send_as:flags.13?InputPeer = Bool;
 messages.requestSimpleWebView#299bec8e flags:# from_switch_webview:flags.1?true bot:InputUser url:string theme_params:flags.0?DataJSON platform:string = SimpleWebViewResult;
 messages.sendWebViewResultMessage#a4314f5 bot_query_id:string result:InputBotInlineResult = WebViewMessageSent;
 messages.sendWebViewData#dc0242c8 bot:InputUser random_id:long button_text:string data:string = Updates;
@@ -62835,7 +62761,7 @@ messages.getBotApp#34fdc5c3 app:InputBotApp hash:long = messages.BotApp;
 messages.requestAppWebView#8c5a3b3c flags:# write_allowed:flags.0?true peer:InputPeer app:InputBotApp start_param:flags.1?string theme_params:flags.2?DataJSON platform:string = AppWebViewResult;
 messages.setChatWallPaper#8ffacae1 flags:# peer:InputPeer wallpaper:flags.0?InputWallPaper settings:flags.2?WallPaperSettings id:flags.1?int = Updates;
 updates.getState#edd4882a = updates.State;
-updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
+updates.getDifference#19c2f763 flags:# pts:int pts_limit:flags.1?int pts_total_limit:flags.0?int date:int qts:int qts_limit:flags.2?int = updates.Difference;
 updates.getChannelDifference#3173d78 flags:# force:flags.0?true channel:InputChannel filter:ChannelMessagesFilter pts:int limit:int = updates.ChannelDifference;
 photos.updateProfilePhoto#9e82039 flags:# fallback:flags.0?true bot:flags.1?InputUser id:InputPhoto = photos.Photo;
 photos.uploadProfilePhoto#388a3b5 flags:# fallback:flags.3?true bot:flags.5?InputUser file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double video_emoji_markup:flags.4?VideoSize = photos.Photo;
@@ -62928,6 +62854,7 @@ channels.reorderPinnedForumTopics#2950a18f flags:# force:flags.0?true channel:In
 channels.toggleAntiSpam#68f3e4eb channel:InputChannel enabled:Bool = Updates;
 channels.reportAntiSpamFalsePositive#a850a693 channel:InputChannel msg_id:int = Bool;
 channels.toggleParticipantsHidden#6a6e7854 channel:InputChannel enabled:Bool = Updates;
+channels.clickSponsoredMessage#18afbc93 channel:InputChannel random_id:bytes = Bool;
 bots.sendCustomRequest#aa2769ed custom_method:string params:DataJSON = DataJSON;
 bots.answerWebhookJSONQuery#e6213f4d query_id:long data:DataJSON = Bool;
 bots.setBotCommands#517165a scope:BotCommandScope lang_code:string commands:Vector<BotCommand> = Bool;
@@ -63015,9 +62942,26 @@ chatlists.joinChatlistUpdates#e089f8f5 chatlist:InputChatlist peers:Vector<Input
 chatlists.hideChatlistUpdates#66e486fb chatlist:InputChatlist = Bool;
 chatlists.getLeaveChatlistSuggestions#fdbcd714 chatlist:InputChatlist = Vector<Peer>;
 chatlists.leaveChatlist#74fae13a chatlist:InputChatlist peers:Vector<InputPeer> = Updates;
+stories.sendStory#424cd47a flags:# pinned:flags.2?true noforwards:flags.4?true media:InputMedia caption:flags.0?string entities:flags.1?Vector<MessageEntity> privacy_rules:Vector<InputPrivacyRule> random_id:long period:flags.3?int = Updates;
+stories.editStory#2aae7a41 flags:# id:int media:flags.0?InputMedia caption:flags.1?string entities:flags.1?Vector<MessageEntity> privacy_rules:flags.2?Vector<InputPrivacyRule> = Updates;
+stories.deleteStories#b5d501d7 id:Vector<int> = Vector<int>;
+stories.togglePinned#51602944 id:Vector<int> pinned:Bool = Vector<int>;
+stories.getAllStories#eeb0d625 flags:# next:flags.1?true hidden:flags.2?true state:flags.0?string = stories.AllStories;
+stories.getUserStories#96d528e0 user_id:InputUser = stories.UserStories;
+stories.getPinnedStories#b471137 user_id:InputUser offset_id:int limit:int = stories.Stories;
+stories.getStoriesArchive#1f5bc5d2 offset_id:int limit:int = stories.Stories;
+stories.getStoriesByID#6a15cf46 user_id:InputUser id:Vector<int> = stories.Stories;
+stories.toggleAllStoriesHidden#7c2557c4 hidden:Bool = Bool;
+stories.getAllReadUserStories#729c562c = Updates;
+stories.readStories#edc5105b user_id:InputUser max_id:int = Vector<int>;
+stories.incrementStoryViews#22126127 user_id:InputUser id:Vector<int> = Bool;
+stories.getStoryViewsList#4b3b5e97 id:int offset_date:int offset_id:long limit:int = stories.StoryViewsList;
+stories.getStoriesViews#9a75d6a6 id:Vector<int> = stories.StoryViews;
+stories.exportStoryLink#16e443ce user_id:InputUser id:int = ExportedStoryLink;
+stories.report#c95be06a user_id:InputUser id:Vector<int> reason:ReportReason message:string = Bool;
 `;
 
-},{}],371:[function(require,module,exports){
+},{}],372:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -63072,7 +63016,7 @@ GZIPPacked.CONSTRUCTOR_ID = 0x3072cfa1;
 GZIPPacked.classType = "constructor";
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../":389,"buffer":69,"pako":264}],372:[function(require,module,exports){
+},{"../":390,"buffer":69,"pako":264}],373:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MessageContainer = void 0;
@@ -63116,7 +63060,7 @@ MessageContainer.MAXIMUM_SIZE = 1044456 - 8;
 // other factors like size per request, but we cannot know this.
 MessageContainer.MAXIMUM_LENGTH = 100;
 
-},{"./TLMessage":374}],373:[function(require,module,exports){
+},{"./TLMessage":375}],374:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RPCResult = void 0;
@@ -63150,7 +63094,7 @@ exports.RPCResult = RPCResult;
 RPCResult.CONSTRUCTOR_ID = 0xf35c6d01;
 RPCResult.classType = "constructor";
 
-},{"../api":369,"./":375}],374:[function(require,module,exports){
+},{"../api":370,"./":376}],375:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TLMessage = void 0;
@@ -63166,7 +63110,7 @@ exports.TLMessage = TLMessage;
 TLMessage.SIZE_OVERHEAD = 12;
 TLMessage.classType = "constructor";
 
-},{}],375:[function(require,module,exports){
+},{}],376:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GZIPPacked = exports.MessageContainer = exports.TLMessage = exports.RPCResult = exports.coreObjects = void 0;
@@ -63184,7 +63128,7 @@ exports.coreObjects = new Map([
     [MessageContainer_1.MessageContainer.CONSTRUCTOR_ID, MessageContainer_1.MessageContainer],
 ]);
 
-},{"./GZIPPacked":371,"./MessageContainer":372,"./RPCResult":373,"./TLMessage":374}],376:[function(require,module,exports){
+},{"./GZIPPacked":372,"./MessageContainer":373,"./RPCResult":374,"./TLMessage":375}],377:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -63266,7 +63210,7 @@ class Button {
 exports.Button = Button;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../../":346,"../../Helpers":295,"../../inspect":347,"../api":369,"buffer":69}],377:[function(require,module,exports){
+},{"../../":347,"../../Helpers":294,"../../inspect":348,"../api":370,"buffer":69}],378:[function(require,module,exports){
 "use strict";
 var __asyncValues = (this && this.__asyncValues) || function (o) {
     if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
@@ -63382,7 +63326,7 @@ class ChatGetter {
 }
 exports.ChatGetter = ChatGetter;
 
-},{"../../":346,"../../Helpers":295,"../../inspect":347,"../api":369}],378:[function(require,module,exports){
+},{"../../":347,"../../Helpers":294,"../../inspect":348,"../api":370}],379:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Dialog = void 0;
@@ -63424,7 +63368,7 @@ class Dialog {
 }
 exports.Dialog = Dialog;
 
-},{"../../Helpers":295,"../../Utils":297,"../../inspect":347,"../api":369,"./draft":379}],379:[function(require,module,exports){
+},{"../../Helpers":294,"../../Utils":296,"../../inspect":348,"../api":370,"./draft":380}],380:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Draft = void 0;
@@ -63469,7 +63413,7 @@ class Draft {
 }
 exports.Draft = Draft;
 
-},{"../../Helpers":295,"../../Utils":297,"../../inspect":347,"../api":369}],380:[function(require,module,exports){
+},{"../../Helpers":294,"../../Utils":296,"../../inspect":348,"../api":370}],381:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.File = void 0;
@@ -63539,7 +63483,7 @@ class File {
 }
 exports.File = File;
 
-},{"../../Helpers":295,"../../Utils":297,"../../inspect":347,"../api":369}],381:[function(require,module,exports){
+},{"../../Helpers":294,"../../Utils":296,"../../inspect":348,"../api":370}],382:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Forward = void 0;
@@ -63587,21 +63531,21 @@ class Forward extends senderGetter_1.SenderGetter {
 }
 exports.Forward = Forward;
 
-},{"../../Helpers":295,"../../Utils":297,"../../inspect":347,"./chatGetter":377,"./senderGetter":387}],382:[function(require,module,exports){
+},{"../../Helpers":294,"../../Utils":296,"../../inspect":348,"./chatGetter":378,"./senderGetter":388}],383:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChatGetter = void 0;
 var chatGetter_1 = require("./chatGetter");
 Object.defineProperty(exports, "ChatGetter", { enumerable: true, get: function () { return chatGetter_1.ChatGetter; } });
 
-},{"./chatGetter":377}],383:[function(require,module,exports){
+},{"./chatGetter":378}],384:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InlineResult = void 0;
 const api_1 = require("../api");
-const __1 = require("../../");
 const Helpers_1 = require("../../Helpers");
 const inspect_1 = require("../../inspect");
+const Utils_1 = require("../../Utils");
 class InlineResult {
     constructor(client, original, queryId, entity) {
         this._ARTICLE = "article";
@@ -63663,7 +63607,12 @@ class InlineResult {
         else {
             throw new Error("You must provide the entity where the result should be sent to");
         }
-        const replyId = replyTo ? __1.utils.getMessageId(replyTo) : undefined;
+        let replyObject = undefined;
+        if (replyTo != undefined) {
+            replyObject = new api_1.Api.InputReplyToMessage({
+                replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
+            });
+        }
         const request = new api_1.Api.messages.SendInlineBotResult({
             peer: entity,
             queryId: this._queryId,
@@ -63671,14 +63620,14 @@ class InlineResult {
             silent: silent,
             clearDraft: clearDraft,
             hideVia: hideVia,
-            replyToMsgId: replyId,
+            replyTo: replyObject,
         });
         return await this._client.invoke(request);
     }
 }
 exports.InlineResult = InlineResult;
 
-},{"../../":346,"../../Helpers":295,"../../inspect":347,"../api":369}],384:[function(require,module,exports){
+},{"../../Helpers":294,"../../Utils":296,"../../inspect":348,"../api":370}],385:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InlineResults = void 0;
@@ -63706,7 +63655,7 @@ class InlineResults extends Array {
 }
 exports.InlineResults = InlineResults;
 
-},{"../../Helpers":295,"../../inspect":347,"./inlineResult":383}],385:[function(require,module,exports){
+},{"../../Helpers":294,"../../inspect":348,"./inlineResult":384}],386:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -64411,7 +64360,7 @@ class CustomMessage extends senderGetter_1.SenderGetter {
 }
 exports.CustomMessage = CustomMessage;
 
-},{"../../Helpers":295,"../../Utils":297,"../../client/users":316,"../../extensions/Logger":337,"../../inspect":347,"../api":369,"./chatGetter":377,"./file":380,"./forward":381,"./messageButton":386,"./senderGetter":387}],386:[function(require,module,exports){
+},{"../../Helpers":294,"../../Utils":296,"../../client/users":315,"../../extensions/Logger":337,"../../inspect":348,"../api":370,"./chatGetter":378,"./file":381,"./forward":382,"./messageButton":387,"./senderGetter":388}],387:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MessageButton = void 0;
@@ -64565,7 +64514,7 @@ class MessageButton {
 }
 exports.MessageButton = MessageButton;
 
-},{"../../Helpers":295,"../../Password":296,"../../inspect":347,"../api":369,"./button":376}],387:[function(require,module,exports){
+},{"../../Helpers":294,"../../Password":295,"../../inspect":348,"../api":370,"./button":377}],388:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SenderGetter = void 0;
@@ -64622,7 +64571,7 @@ class SenderGetter extends chatGetter_1.ChatGetter {
 }
 exports.SenderGetter = SenderGetter;
 
-},{"../../Helpers":295,"../../inspect":347,"../api":369,"./chatGetter":377}],388:[function(require,module,exports){
+},{"../../Helpers":294,"../../inspect":348,"../api":370,"./chatGetter":378}],389:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -64915,7 +64864,7 @@ function serializeDate(dt) {
 exports.serializeDate = serializeDate;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../Helpers":295,"buffer":69}],389:[function(require,module,exports){
+},{"../Helpers":294,"buffer":69}],390:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.serializeDate = exports.serializeBytes = exports.Api = void 0;
@@ -64927,7 +64876,7 @@ var generationHelpers_1 = require("./generationHelpers");
 Object.defineProperty(exports, "serializeBytes", { enumerable: true, get: function () { return generationHelpers_1.serializeBytes; } });
 Object.defineProperty(exports, "serializeDate", { enumerable: true, get: function () { return generationHelpers_1.serializeDate; } });
 
-},{"./api":369,"./generationHelpers":388,"./patched":390}],390:[function(require,module,exports){
+},{"./api":370,"./generationHelpers":389,"./patched":391}],391:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.patchAll = void 0;
@@ -65005,7 +64954,7 @@ function patchAll() {
 }
 exports.patchAll = patchAll;
 
-},{"../api":369,"../custom/message":385}],391:[function(require,module,exports){
+},{"../api":370,"../custom/message":386}],392:[function(require,module,exports){
 "use strict";
 module.exports = `
 resPQ#05162463 nonce:int128 server_nonce:int128 pq:string server_public_key_fingerprints:Vector<long> = ResPQ;
@@ -65063,6 +65012,7 @@ tlsBlockDomain = TlsBlock;
 tlsBlockGrease seed:int = TlsBlock;
 tlsBlockPublicKey = TlsBlock;
 tlsBlockScope entries:Vector<TlsBlock> = TlsBlock;
+tlsBlockPermutation entries:Vector<Vector<TlsBlock>> = TlsBlock;
 ---functions---
 rpc_drop_answer#58e4a740 req_msg_id:long = RpcDropAnswer;
 get_future_salts#b921bd04 num:int = FutureSalts;
@@ -65071,7 +65021,7 @@ ping_delay_disconnect#f3427b8c ping_id:long disconnect_delay:int = Pong;
 destroy_session#e7512126 session_id:long = DestroySessionRes;
 `;
 
-},{}],392:[function(require,module,exports){
+},{}],393:[function(require,module,exports){
 function fixProto(target, prototype) {
   var setPrototypeOf = Object.setPrototypeOf;
   setPrototypeOf ? setPrototypeOf(target, prototype) : target.__proto__ = prototype;
@@ -65183,7 +65133,7 @@ exports.CustomError = CustomError;
 exports.customErrorFactory = customErrorFactory;
 
 
-},{}],393:[function(require,module,exports){
+},{}],394:[function(require,module,exports){
 (function (global){(function (){
 /******************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -65199,7 +65149,7 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
-/* global global, define, System, Reflect, Promise */
+/* global global, define, Symbol, Reflect, Promise, SuppressedError */
 var __extends;
 var __assign;
 var __rest;
@@ -65229,6 +65179,8 @@ var __classPrivateFieldGet;
 var __classPrivateFieldSet;
 var __classPrivateFieldIn;
 var __createBinding;
+var __addDisposableResource;
+var __disposeResources;
 (function (factory) {
     var root = typeof global === "object" ? global : typeof self === "object" ? self : typeof this === "object" ? this : {};
     if (typeof define === "function" && define.amd) {
@@ -65525,6 +65477,53 @@ var __createBinding;
         return typeof state === "function" ? receiver === state : state.has(receiver);
     };
 
+    __addDisposableResource = function (env, value, async) {
+        if (value !== null && value !== void 0) {
+            if (typeof value !== "object" && typeof value !== "function") throw new TypeError("Object expected.");
+            var dispose;
+            if (async) {
+                if (!Symbol.asyncDispose) throw new TypeError("Symbol.asyncDispose is not defined.");
+                dispose = value[Symbol.asyncDispose];
+            }
+            if (dispose === void 0) {
+                if (!Symbol.dispose) throw new TypeError("Symbol.dispose is not defined.");
+                dispose = value[Symbol.dispose];
+            }
+            if (typeof dispose !== "function") throw new TypeError("Object not disposable.");
+            env.stack.push({ value: value, dispose: dispose, async: async });
+        }
+        else if (async) {
+            env.stack.push({ async: true });
+        }
+        return value;
+    };
+
+    var _SuppressedError = typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
+        var e = new Error(message);
+        return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
+    };
+
+    __disposeResources = function (env) {
+        function fail(e) {
+            env.error = env.hasError ? new _SuppressedError(e, env.error, "An error was suppressed during disposal.") : e;
+            env.hasError = true;
+        }
+        function next() {
+            while (env.stack.length) {
+                var rec = env.stack.pop();
+                try {
+                    var result = rec.dispose && rec.dispose.call(rec.value);
+                    if (rec.async) return Promise.resolve(result).then(next, function(e) { fail(e); return next(); });
+                }
+                catch (e) {
+                    fail(e);
+                }
+            }
+            if (env.hasError) throw env.error;
+        }
+        return next();
+    };
+
     exporter("__extends", __extends);
     exporter("__assign", __assign);
     exporter("__rest", __rest);
@@ -65554,10 +65553,12 @@ var __createBinding;
     exporter("__classPrivateFieldGet", __classPrivateFieldGet);
     exporter("__classPrivateFieldSet", __classPrivateFieldSet);
     exporter("__classPrivateFieldIn", __classPrivateFieldIn);
+    exporter("__addDisposableResource", __addDisposableResource);
+    exporter("__disposeResources", __disposeResources);
 });
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],394:[function(require,module,exports){
+},{}],395:[function(require,module,exports){
 var _globalThis;
 if (typeof globalThis === 'object') {
 	_globalThis = globalThis;
@@ -65613,10 +65614,10 @@ module.exports = {
     'version'      : websocket_version
 };
 
-},{"./version":395,"es5-ext/global":248}],395:[function(require,module,exports){
+},{"./version":396,"es5-ext/global":248}],396:[function(require,module,exports){
 module.exports = require('../package.json').version;
 
-},{"../package.json":396}],396:[function(require,module,exports){
+},{"../package.json":397}],397:[function(require,module,exports){
 module.exports={
   "name": "websocket",
   "description": "Websocket Client & Server Library implementing the WebSocket protocol as specified in RFC 6455.",
@@ -65676,7 +65677,7 @@ module.exports={
   "license": "Apache-2.0"
 }
 
-},{}],397:[function(require,module,exports){
+},{}],398:[function(require,module,exports){
 (function (Buffer,process,__filename){(function (){
 'use strict'
 module.exports = writeFile
@@ -65808,238 +65809,15 @@ function writeFileSync (filename, data, options) {
   }
 }
 
-}).call(this)}).call(this,{"isBuffer":require("C:/Users/APTEMOND/AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'),"/../node_modules/write-file-atomic/index.js")
-},{"C:/Users/APTEMOND/AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":153,"_process":176,"graceful-fs":250,"imurmurhash":257,"slide":284,"util":217}],398:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("C:/Users/APTEMOND/AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'),"/node_modules/write-file-atomic/index.js")
+},{"C:/Users/APTEMOND/AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":153,"_process":176,"graceful-fs":250,"imurmurhash":257,"slide":283,"util":217}],399:[function(require,module,exports){
 const { Api, TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
+const Buffer = require("buffer").Buffer;
 
-const apiId = 26855747;
-const apiHash = "5bad5ec2aac0a32ab6d5db013f96a8ff";
-const savedSession = localStorage.getItem("savedSession");
-const stringSession = new StringSession(savedSession || "");
-let files = [];
-const client = new TelegramClient(stringSession, apiId, apiHash, {
-  connectionRetries: 5,
-});
+window.Api = Api;
+window.TelegramClient = TelegramClient;
+window.StringSession = StringSession;
+window.Bufferr = Buffer;
 
-let prevScrollPos = window.pageYOffset;
-const header = document.getElementById("header");
-
-window.addEventListener("scroll", function() {
-  const currentScrollPos = window.pageYOffset;
-
-  if (prevScrollPos > currentScrollPos) {
-    header.classList.remove("hide");
-  } else {
-    header.classList.add("hide");
-  }
-
-  prevScrollPos = currentScrollPos;
-});
-
-
-async function getFilesFromMeDialog() {
-  const mePeerId = await client.getPeerId("me");
-  const messages = await client.getMessages(mePeerId);
-
-  const photos = messages
-    .filter(
-      (message) =>
-      (message.media instanceof Api.MessageMediaPhoto)
-    )
-    .map((message) => {
-      if (message.media instanceof Api.MessageMediaPhoto) {
-        return message.media.photo;
-      }
-    });
-  files = [...photos];
-  files.sort((a, b) => b.date - a.date);
-  console.log(files);
-  return files;
-}
-
-
-const modal = document.getElementById("modal");
-const modalImage = document.getElementById("modal-image");
-const closeBtn = document.querySelector(".close");
-const prevBtn = document.querySelector(".prev");
-const nextBtn = document.querySelector(".next");
-
-async function loadImage(file) {
-  if (file instanceof Api.Document) {
-    const buffer = await client.downloadMedia(file, {});
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-    const videoUrl = "data:video/mp4;base64," + base64;
-
-    const videoElement = document.createElement("video");
-    videoElement.src = videoUrl;
-    videoElement.controls = true;
-    const videoContainer = document.getElementById("video-container");
-    videoContainer.innerHTML = "";
-    videoContainer.appendChild(videoElement);
-  } else if (file instanceof Api.Photo) {
-    const buffer = await client.downloadMedia(file, {});
-
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-    const fullImageUrl = "data:image/jpeg;base64," + base64;
-
-    file.src = fullImageUrl;
-  }
-}
-
-function openModal(index) {
-  currentImageIndex = index;
-
-  if (!files[currentImageIndex].src) {
-    loadImage(files[currentImageIndex]);
-  }
-
-  if (files[currentImageIndex] instanceof Api.Document) {
-    modalImage.style.display = "none";
-    videoContainer.style.display = "block";
-  } else if (files[currentImageIndex] instanceof Api.Photo) {
-    modalImage.src = files[currentImageIndex].src;
-    modalImage.style.display = "block";
-    //videoContainer.style.display = "none";
-  }
-
-  modal.style.display = "block";
-}
-
-
-function closeModal() {
-  modal.style.display = "none";
-}
-
-function showPrevImage() {
-  currentImageIndex = (currentImageIndex - 1 + files.length) % files.length;
-  modalImage.src = files[currentImageIndex].src;
-}
-
-function showNextImage() {
-  currentImageIndex = (currentImageIndex + 1) % files.length;
-  modalImage.src = files[currentImageIndex].src;
-}
-
-closeBtn.addEventListener("click", closeModal);
-prevBtn.addEventListener("click", showPrevImage);
-nextBtn.addEventListener("click", showNextImage);
-
-async function getThumbnailUrl(file) {
-  const thumbnail = file.sizes.find((size) => size.type === 's') || file.sizes[0];
-  const buffer = await client.downloadMedia(thumbnail, {});
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-  return "data:image/jpeg;base64," + base64;
-}
-
-async function lazyLoadImage(imageDivElement, file) {
-  const fileId = file.id.toString();
-
-  const observer = new IntersectionObserver(async (entries) => {
-    if (entries[0].isIntersecting) {
-      try {
-        //imageDivElement.style.backgroundColor = `rgb(135,116,225)`;
-        const buffer = await client.downloadMedia(file, {});
-        fullImageUrl = URL.createObjectURL(
-          new Blob([buffer], { type: 'image/png' } /* (1) */)
-        );
-        imageDivElement.style.backgroundImage = `url(${fullImageUrl})`;
-        file.src = fullImageUrl;
-      } catch (error) {
-        console.error(`Error loading image ${fileId}: ${error}`);
-        // Handle image loading error as needed, e.g. show a fallback image
-      }
-      observer.disconnect();
-    }
-  }, {});
-
-  // Start observing the imageDivElement
-  observer.observe(imageDivElement);
-}
-
-async function displayFiles(files) {
-  const fileList = document.getElementById("file-list");
-  const groupDuration = 10 * 24 * 60 * 60 * 1000;
-  let currentGroupStartDate = new Date(files[0].date * 1000);
-
-  function addGroupHeader(date) {
-    const groupHeader = document.createElement("h3");
-    groupHeader.textContent = date.toLocaleDateString();
-    groupHeader.className = "time-top";
-    fileList.appendChild(groupHeader);
-  }
-
-  addGroupHeader(currentGroupStartDate);
-
-  for (const [index, file] of files.entries()) {
-    const nextIndex = index + 1;
-    const fileDate = new Date(file.date * 1000);
-    let nextFileDate = null;
-
-    if (nextIndex < files.length) {
-      nextFileDate = new Date(files[nextIndex].date * 1000);
-    }
-
-    if (currentGroupStartDate - fileDate >= groupDuration) {
-      if (nextFileDate && currentGroupStartDate - nextFileDate >= groupDuration) {
-        currentGroupStartDate = nextFileDate;
-        addGroupHeader(currentGroupStartDate);
-      } else {
-        currentGroupStartDate = fileDate;
-        addGroupHeader(currentGroupStartDate);
-      }
-    }
-
-    const listItem = document.createElement("li");
-    listItem.className = "li-tile";
-
-    if (file instanceof Api.Photo) {
-      const thumbnailUrl = await getThumbnailUrl(file);
-
-      // Create a div element and set its background-image CSS property
-      const divElement = document.createElement("div");
-      divElement.style.backgroundImage = `url(${thumbnailUrl})`;
-      divElement.className = "image-tile";
-
-      // Lazy load the full-resolution image
-
-      // Add event listener to open the modal
-      divElement.addEventListener("click", () => openModal(index));
-
-      listItem.appendChild(divElement);
-    } else if (file instanceof Api.Document) {
-      const videoIcon = document.createElement("i");
-      videoIcon.className = "fas fa-video";
-
-      const divElement = document.createElement("div");
-      divElement.className = "video-tile";
-      divElement.appendChild(videoIcon);
-
-      // Add event listener to open the modal
-      divElement.addEventListener("click", () => openModal(index));
-
-      listItem.appendChild(divElement);
-    }
-
-    fileList.appendChild(listItem);
-    lazyLoadImage(listItem.firstChild, file);
-  }
-}
-
-async function setUserProfilePhotoAsBackground() {
-  const buffer = await client.downloadProfilePhoto('me')
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-  const fullImageUrl = "data:image/jpeg;base64," + base64;
-  const userPhotoElement = document.getElementById("user-photo");
-  userPhotoElement.style.backgroundImage = `url(${fullImageUrl})`;
-}
-
-async function init() {
-  await client.connect();
-  setUserProfilePhotoAsBackground();
-  const files = await getFilesFromMeDialog();
-  displayFiles(files);
-}
-
-init();   
-},{"telegram":346,"telegram/sessions":366}]},{},[398]);
+},{"buffer":69,"telegram":347,"telegram/sessions":367}]},{},[399]);
