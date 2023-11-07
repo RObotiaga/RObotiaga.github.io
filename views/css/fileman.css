@@ -108,6 +108,7 @@ div#side-bar-top-block {
 #rename-button,
 #delete-button,
 #copy-button,
+#select-button,
 #accept-copy-button {
   display: none;
   opacity: 0;

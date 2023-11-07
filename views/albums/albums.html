@@ -120,7 +120,7 @@
         class="footer-button"
         id="exit-button"
         onclick="localStorage.removeItem('savedSession'); 
-        document.location='../login.html'">
+        document.location='../loginpage/login.html'">
         <div class="footer-button-svg-exit"></div>
         <div class="footer-button-text">Выйти</div>
       </button>
@@ -157,7 +157,9 @@
     </div>
     <div id="black-screen"></div>
     <script src="../bundle.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.8.0/jszip.min.js"></script>
     <script src="utils.js"></script>
+    <script src="/node_modules/face-api.js/dist/face-api.min.js"></script>
     <script src="album.js"></script>
   </body>
 </html>

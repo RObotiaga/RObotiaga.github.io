@@ -1,3 +1,5 @@
+const { faceapi } = window;
+const { JSZip } = window;
 // TG client init
 
 const apiId = 26855747;
@@ -7,20 +9,20 @@ const stringSession = new StringSession(savedSession || "");
 const client = new TelegramClient(stringSession, apiId, apiHash, {
   connectionRetries: 5,
 });
-
 let ALBUMS;
+let messages;
 
 const createAlbum = document.getElementById("create-album");
 const backButton = document.getElementById("back-button");
 
 // Create album
-const messageIds = [38123, 38223, 38423, 38113, 34123];
+const messageIds = [];
 
 // Structural functions
 
 async function getAlbums() {
   const mePeerId = await client.getPeerId("me");
-  const messages = await client.getMessages(mePeerId);
+  messages = await client.getMessages(mePeerId);
 
   const albums = messages
     .filter((message) => message.message?.startsWith("#Album "))
@@ -65,7 +67,6 @@ async function createDivAlbum(album) {
   const folderTile = document.createElement("div");
   folderTile.className = "album";
   const cover = await getMessageById(album.messageWithPhotoIds[0]);
-  console.log(cover);
   const buffer = await client.downloadMedia(cover[0]);
   folderTile.style.backgroundImage = `url(${URL.createObjectURL(
     new Blob([buffer], { type: "image/png" })
@@ -174,6 +175,8 @@ function faceAlbumSection() {
   fileList.appendChild(weekHeader);
   startFaceScanButton();
 }
+const selectBuffer = localStorage.getItem("selectBuffer");
+console.log(selectBuffer);
 async function startFaceScanButton() {
   const listItem = document.createElement("li");
   listItem.className = "li-tile";
@@ -187,18 +190,14 @@ async function startFaceScanButton() {
   listItem.appendChild(divElement);
   fileList.appendChild(listItem);
   listItem.addEventListener("click", async () => {
-    console.log("Started");
+    document.location = "choosePhotos.html";
+    // startFaceScan();
   });
 }
-async function startFaceScan() {
-  const mePeerId = await client.getPeerId("me");
-  const messages = await client.getMessages(mePeerId);
+const faceInfo = {};
+function getAllImages() {
   const photos = messages
-    .filter(
-      (message) =>
-        message.media instanceof Api.MessageMediaPhoto ||
-        message.message?.startsWith("#EmptyFolder ")
-    )
+    .filter((message) => message.media instanceof Api.MessageMediaPhoto)
     .map((message) => ({
       message,
       type: "photo",
@@ -207,7 +206,7 @@ async function startFaceScan() {
       date: message.date,
       messageId: message.id,
     }));
-    const docPhoto = messages
+  const docPhoto = messages
     .filter(
       (message) =>
         message.media instanceof Api.MessageMediaDocument &&
@@ -222,7 +221,105 @@ async function startFaceScan() {
       messageId: message.id,
       thumb: message.media.document.thumbs,
     }));
-  const allPhoto = [...photos, ...docPhoto]
+  const allPhoto = [...photos];
+  return allPhoto;
+}
+
+async function downloadImage(message) {
+  let buffer;
+  try {
+    buffer = await client.downloadMedia(message.media || message.file);
+  } catch (err) {
+    console.error("Ошибка при преобразовании изображения:", err);
+  }
+  try {
+    const image = await faceapi.bufferToImage(new Blob([buffer]));
+    return image;
+  } catch (error) {
+    console.error("Ошибка при преобразовании изображения:", error);
+  }
+}
+let downloadedImages = [];
+
+async function recognition(image, photo) {
+  const detections = await faceapi
+    .detectAllFaces(image)
+    .withFaceLandmarks()
+    .withFaceDescriptors();
+
+  for (const detection of detections) {
+    const faceDescriptor = detection.descriptor;
+    let knownFace = null;
+    for (const knownFaceId in faceInfo) {
+      const knownFaceDescriptor = faceInfo[knownFaceId].descriptor;
+      const distance = faceapi.euclideanDistance(
+        knownFaceDescriptor,
+        faceDescriptor
+      );
+
+      if (distance < 0.6) {
+        knownFace = knownFaceId;
+        break;
+      }
+    }
+
+    if (knownFace) {
+      faceInfo[knownFace].images.push({ photo, image, detection });
+    } else {
+      const newFaceId = `Face-${Object.keys(faceInfo).length + 1}`;
+      faceInfo[newFaceId] = {
+        images: [{ photo, image, detection }],
+        descriptor: faceDescriptor,
+      };
+    }
+  }
+}
+function savetozip(photos) {
+  const zipFileName = "photos.zip";
+  const zip = new JSZip();
+  const folder = zip.folder("photos");
+
+  photos.forEach((photoBuffer, index) => {
+    folder.file(`photo${index + 1}.jpg`, photoBuffer);
+  });
+
+  zip.generateAsync({ type: "blob" }).then(function (blob) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = zipFileName;
+    a.style.display = "none";
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    document.body.removeChild(a);
+  });
+}
+async function startFaceScan() {
+  await faceapi.nets.ssdMobilenetv1.loadFromUri("/views/models");
+  // await faceapi.nets.faceRecognitionNet.loadFromUri("/views/models");
+  await faceapi.nets.faceLandmark68Net.loadFromUri("/views/models");
+  const allPhoto = getAllImages().slice(0, 20);
+  let progress = 0;
+  // Получаем изображения из сообщений
+  for (const photo of allPhoto) {
+    const image = await downloadImage(photo);
+    progress += 1;
+    console.log((progress / allPhoto.length).toFixed(2) * 100, allPhoto.length);
+    // Распознавание лиц на изображении
+    recognition(image, photo);
+  }
+  for (const [key, value] of Object.entries(faceInfo)) {
+    const album = [];
+    for (const message of value.images) {
+      album.push(message.photo.messageId);
+    }
+    await client.sendMessage("me", {
+      message: `#Album name:NoName photos:[${album}]`,
+    });
+    // console.log(`#Album name:NoName photos:[${album}]`);
+  }
 }
 async function displayAlbums(albums) {
   fileList.innerHTML = "";
@@ -242,7 +339,6 @@ async function displayPhotos(album) {
   };
   for (const messageId of album.messageWithPhotoIds) {
     const message = await getMessageById(messageId);
-    // console.log(message);
     await createPhotoElement(message[0]);
   }
   await createAddPhotoButton();

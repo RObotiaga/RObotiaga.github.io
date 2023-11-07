@@ -159,10 +159,7 @@ const closeBtn = document.getElementById("close");
 const closevBtn = document.getElementById("closev");
 const prevBtn = document.querySelector(".prev");
 const nextBtn = document.querySelector(".next");
-const moveButton = document.getElementById("move-button");
-const acceptMoveButton = document.getElementById("accept-move-button");
-const copyButton = document.getElementById("copy-button");
-const acceptCopyButton = document.getElementById("accept-copy-button");
+const selectButton = document.getElementById("select-button");
 const sideBar = document.getElementById("side-bar");
 const blackScreen = document.getElementById("black-screen");
 const userChoose = document.getElementById("user-choose");
@@ -295,14 +292,12 @@ async function createFileElement(item) {
   onLongPress(listItem, () => {
     if (listItem.classList.contains("selected")) {
       listItem.classList.remove("selected");
-      selectedFiles.splice(
-        findIndexByMessageId(selectedFiles, item.message.id),
-        1
-      );
+      selectedFiles.splice(1);
     } else {
       listItem.classList.add("selected");
-      selectedFiles.push(item);
+      selectedFiles.push(item.messageId);
     }
+    updateActionButtonVisibility();
     console.log(selectedFiles);
   });
 }
@@ -372,7 +367,13 @@ function getWeekStartDate(date) {
   weekStartDate.setHours(0, 0, 0, 0);
   return weekStartDate;
 }
-
+function updateActionButtonVisibility() {
+  if (selectedFiles.length > 0) {
+    makeVisibleAnimation(selectButton, 500);
+  } else {
+    makeHiddenAnimation(selectButton, 500);
+  }
+}
 async function checkRootFolder() {
   if (navigationStack.length <= 1) {
     return true;
@@ -488,6 +489,14 @@ async function setUserProfilePhotoAsBackground() {
   me = me.firstName;
   userName.textContent = `${me}`;
 }
+const selectBuffer = [];
+selectButton.addEventListener("click", async () => {
+  selectBuffer.push(...selectedFiles);
+  const savedSession = localStorage.setItem("selectBuffer");
+  document.location = "albums.html";
+  selectedFiles.length = 0;
+  updateActionButtonVisibility();
+});
 // Main thread
 
 async function displayFilesAndFolders(fileStructure) {
