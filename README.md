@@ -12,7 +12,7 @@
   </ol>
   <h3>Установка и Запуск</h3>
   <ol>
-    <li><p><strong>Клонирование Репозитория:</strong> <code>git clone https://github.com/ваш_проект.git</code></p></li>
+    <li><p><strong>Клонирование Репозитория:</strong> <code>git clone https://github.com/RObotiaga/RObotiaga.github.io.git</code></p></li>
     <li><p><strong>Запустите проект с помощью Live-server</strong></p></li>
     <li><p><strong>Работайте!</strong></p></li>
   </ol>
