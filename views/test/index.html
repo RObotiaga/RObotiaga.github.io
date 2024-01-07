@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Face Recognition</title>
+  </head>
+  <body>
+    <h1>Распознавание лиц с помощью face-api.js</h1>
+    <input
+      type="file"
+      id="fileInput1"
+      accept="image/*"
+      style="position: absolute; top: 0px"
+    />
+    <input
+      type="file"
+      id="fileInput2"
+      accept="image/*"
+      style="position: absolute; top: 0px; left: 300px"
+    />
+    <img
+      id="inputImage1"
+      src=""
+      alt="Input Image 1"
+      style="display: none; position: absolute; max-width: 40%"
+    />
+    <img
+      id="inputImage2"
+      src=""
+      alt="Input Image 2"
+      style="display: none; position: absolute; max-width: 40%; left: 40%"
+    />
+    <canvas id="overlay1" style="position: absolute"></canvas>
+    <canvas id="overlay2" style="position: absolute; left: 40%"></canvas>
+    <div id="result" style="position: absolute; top: 70%;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0"></script>
+    <script src="/node_modules/face-api.js/dist/face-api.min.js"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const fileInput1 = document.getElementById("fileInput1");
+        const inputImage1 = document.getElementById("inputImage1");
+        const fileInput2 = document.getElementById("fileInput2");
+        const inputImage2 = document.getElementById("inputImage2");
+        const resultDiv = document.getElementById("result");
+        const overlay1 = document.getElementById("overlay1");
+        const overlay2 = document.getElementById("overlay2");
+        let detections1;
+        fileInput1.addEventListener("change", handleImage1);
+        fileInput2.addEventListener("change", handleImage2);
+
+        async function handleImage1() {
+          const file = fileInput1.files[0];
+          if (file) {
+            const image = await faceapi.bufferToImage(file);
+            inputImage1.src = image.src;
+            inputImage1.style.display = "block"; // Здесь исправлено
+            inputImage1.style.position = "absolute";
+            // Загрузка модели
+            const MODEL_URL = "/views/models";
+
+            await faceapi.loadSsdMobilenetv1Model(MODEL_URL);
+            await faceapi.loadFaceLandmarkModel(MODEL_URL);
+            await faceapi.loadFaceRecognitionModel(MODEL_URL);
+            // Распознавание лиц на изображении
+            detections1 = await faceapi
+              .detectAllFaces(inputImage1)
+              .withFaceLandmarks()
+              .withFaceDescriptors();
+            const resizedDetections = faceapi.resizeResults(
+              detections1,
+              inputImage1
+            );
+            overlay1.width = inputImage1.width;
+            overlay1.height = inputImage1.height;
+            // Отображение областей лиц на изображении
+            faceapi.draw.drawDetections(overlay1, resizedDetections);
+            // faceapi.draw.drawFaceLandmarks(overlay1, resizedDetections);
+
+            if (detections1.length > 0) {
+              resultDiv.innerHTML = `${detections1.length} лиц(а) обнаружено.`;
+            } else {
+              resultDiv.innerHTML = "Лица не обнаружены.";
+            }
+          } else {
+            inputImage1.style.display = "none"; // Здесь исправлено
+            resultDiv.innerHTML = "";
+            overlay1
+              .getContext("2d")
+              .clearRect(0, 0, overlay1.width, overlay1.height);
+          }
+        }
+        async function handleImage2() {
+          const file = fileInput2.files[0];
+          if (file) {
+            const image = await faceapi.bufferToImage(file);
+            inputImage2.src = image.src;
+            inputImage2.style.display = "block";
+            inputImage2.style.position = "absolute";
+
+            // Загрузка модели
+            const MODEL_URL = "/views/models";
+
+            await faceapi.loadSsdMobilenetv1Model(MODEL_URL);
+            await faceapi.loadFaceLandmarkModel(MODEL_URL);
+            await faceapi.loadFaceRecognitionModel(MODEL_URL);
+
+            // Распознавание лиц на втором изображении
+            const detections2 = await faceapi
+              .detectAllFaces(inputImage2)
+              .withFaceLandmarks()
+              .withFaceDescriptors();
+
+            const resizedDetections2 = faceapi.resizeResults(
+              detections2,
+              inputImage2
+            );
+
+            overlay2.width = inputImage2.width;
+            overlay2.height = inputImage2.height;
+
+            // Отображение областей лиц на втором изображении
+            faceapi.draw.drawDetections(overlay2, resizedDetections2);
+            faceapi.draw.drawFaceLandmarks(overlay2, resizedDetections2);
+            console.log(detections1, detections2);
+            // Сравнение лиц на обоих изображениях
+            if (detections1.length > 0 && detections2.length > 0) {
+              // Вы можете здесь добавить логику сравнения лиц и вывод результата
+              const faceDescriptor1 = detections1[0].descriptor;
+              const faceDescriptor2 = detections2[0].descriptor;
+
+              // Сравниваем дескрипторы лиц
+              const faceMatcher = new faceapi.FaceMatcher([faceDescriptor1]);
+              const bestMatch = faceMatcher.findBestMatch(faceDescriptor2);
+
+              if (bestMatch._label === "unknown") {
+                resultDiv.innerHTML = "Лица на изображениях различны.";
+              } else {
+                resultDiv.innerHTML = `Сходство лиц: ${bestMatch.distance.toFixed(
+                  2
+                )}`;
+              }
+            } else {
+              resultDiv.innerHTML =
+                "Лица не обнаружены на одном из изображений.";
+            }
+          } else {
+            inputImage2.style.display = "none";
+            resultDiv.innerHTML = "";
+            overlay2
+              .getContext("2d")
+              .clearRect(0, 0, overlay2.width, overlay2.height);
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

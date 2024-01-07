@@ -6,11 +6,15 @@
   "directories": {
     "test": "tests"
   },
-  "scripts": {},
+  "scripts": {
+    "browserify": "browserify views/fileman/filemanagersec.js -o views/fileman/filemanbundle.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "face-api.js": "^0.22.2",
+    "jszip": "^3.10.1",
     "playwright": "^1.34.3",
     "playwright-test": "^9.1.0",
     "telegram": "^2.17.4"

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeleDisk</title>
+    <link rel="stylesheet" href="../css/login.css" />
+  </head>
+  <body>
+    <div class="noSelect">
+      <div class="centered" id="queue">
+        <button class="xPacButton" id="logo"></button>
+        <form id="login-form">
+          <div id="queueTextContainer">
+            <span id="loginTextContainer">
+              <p class="queueText">TeleDisk</p>
+              <p class="note">
+                Please confirm your country code and enter your phone number.
+              </p>
+              <input
+                type="tel"
+                id="login_login"
+                name="login"
+                class="form__input"
+                placeholder="Number"
+                required
+              />
+              <button id="login_button" class="button_b" type="button">
+                Accept
+              </button>
+              <button id="login_with_qr" class="button_b" type="button">
+                Login with QR
+              </button>
+            </span>
+
+            <span id="codeTextContainer" style="display: none">
+              <p class="queueText">Wait code...</p>
+              <input
+                type="password"
+                id="login_code"
+                name="code"
+                class="form__input"
+                placeholder="Code"
+                required
+              />
+              <button id="code_button" class="button_b" type="button">
+                Log In
+              </button>
+              <button class="button_b back_selection" type="button">
+                Back to the selection
+              </button>
+            </span>
+
+            <span id="qrCodeContainer" style="display: none">
+              <p class="queueText">Scan QR-code</p>
+              <img id="qrcode" />
+              <button class="button_b back_selection" type="button">
+                Back to the selection
+              </button>
+            </span>
+            <div id="logged_accounts" style="transform: scale(0)"></div>
+          </div>
+        </form>
+      </div>
+      <p id="buildVersion" class="note">Version 0.2.1 (Release Web)</p>
+      <p id="buildDate" class="note">May 29, 2023</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-base64@3.7.2/base64.min.js"></script>
+    <script src="../bundle.js"></script>
+    <script src="./login.js"></script>
+  </body>
+</html>

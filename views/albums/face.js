@@ -1,0 +1,1 @@
+const { faceapi } = require("face-api.js");
