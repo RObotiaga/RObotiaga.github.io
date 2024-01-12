@@ -293,7 +293,6 @@ async function createFileElement(item) {
     } else {
       openModal(item);
     }
-    console.log(selectedFiles);
   }
   onLongPress(listItem, selectFile, clickFile, 600);
 }
@@ -324,8 +323,7 @@ async function createFolder(folder) {
     updateActionButtonVisibility();
   }
   async function clickFolder() {
-    console.log("click");
-    if (selectedFiles.length > 0) { 
+    if (selectedFiles.length > 0) {
       selectFolder();
     } else {
       navigationStack.push(folder);
@@ -399,7 +397,6 @@ async function updateFileStructure() {
 async function onLongPress(element, callback1, callback2, delay) {
   let pressStartTime = 0;
   let timer = null;
-
   function startPress(event) {
     pressStartTime = Date.now();
     timer = setTimeout(() => {
