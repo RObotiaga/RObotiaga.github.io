@@ -288,9 +288,13 @@ async function createFileElement(item) {
     updateActionButtonVisibility();
   }
   function clickFile() {
-    openModal(item);
+    if (selectedFiles.length > 0) {
+      selectFile();
+    } else {
+      openModal(item);
+    }
   }
-  onLongPress(listItem, selectFile, clickFile);
+  onLongPress(listItem, selectFile, clickFile, 600);
 }
 async function createFolder(folder) {
   const listItem = document.createElement("li");
@@ -303,10 +307,6 @@ async function createFolder(folder) {
   listItem.appendChild(folderTile);
   listItem.appendChild(divElement);
   fileList.appendChild(listItem);
-  listItem.addEventListener("click", async () => {
-    navigationStack.push(folder);
-    await displayFilesAndFolders(folder);
-  });
   function selectFolder() {
     if (listItem.classList.contains("selected")) {
       listItem.classList.remove("selected");
@@ -323,10 +323,14 @@ async function createFolder(folder) {
     updateActionButtonVisibility();
   }
   async function clickFolder() {
-    navigationStack.push(folder);
-    await displayFilesAndFolders(folder);
+    if (selectedFiles.length > 0) {
+      selectFolder();
+    } else {
+      navigationStack.push(folder);
+      await displayFilesAndFolders(folder);
+    }
   }
-  onLongPress(listItem, selectFolder, clickFolder);
+  onLongPress(listItem, selectFolder, clickFolder, 600);
 }
 async function openModal(item) {
   if (item.type == "video") {
@@ -390,22 +394,21 @@ async function updateFileStructure() {
   );
   await displayFilesAndFolders(currentFolder);
 }
-async function onLongPress(element, callback1, callback2) {
+async function onLongPress(element, callback1, callback2, delay) {
   let pressStartTime = 0;
   let timer = null;
-
   function startPress(event) {
     pressStartTime = Date.now();
     timer = setTimeout(() => {
       timer = null;
       callback1();
-    }, 600);
+    }, delay);
   }
 
   function endPress(event) {
     clearTimeout(timer);
     const pressDuration = Date.now() - pressStartTime;
-    if (pressDuration <= 600) {
+    if (pressDuration <= delay) {
       callback2();
     }
   }
