@@ -102,6 +102,7 @@ class File {
         text: getPath().concat("/").concat(newName),
       });
     }
+    updateFileStructure();
   }
   async copyTo(newPath) {
     const filename = this.name;
@@ -119,6 +120,7 @@ class File {
       });
     }
     console.log("Файл скопирован");
+    updateFileStructure();
   }
   async delete() {
     const fileId = this.messageId;
@@ -126,6 +128,25 @@ class File {
       revoke: true,
     });
     console.log("Файл успешно удален:", this.message);
+    updateFileStructure();
+  }
+  async moveTo(newPath) {
+    let result;
+    const filename = this.name || "";
+    if (newPath === "") {
+      result = await client.editMessage("me", {
+        message: this.messageId,
+        text: newPath.concat(filename),
+      });
+    } else {
+      result = await client.editMessage("me", {
+        message: this.messageId,
+        text: newPath.concat("/").concat(filename),
+      });
+    }
+    console.log(result);
+    console.log("Файл перемещен");
+    updateFileStructure();
   }
 }
 
@@ -392,6 +413,7 @@ async function updateFileStructure() {
     fileStructure,
     currentFolderName.textContent
   );
+  console.log(fileStructure, currentFolder);
   await displayFilesAndFolders(currentFolder);
 }
 async function onLongPress(element, callback1, callback2, delay) {
@@ -413,8 +435,8 @@ async function onLongPress(element, callback1, callback2, delay) {
     }
   }
 
-  element.addEventListener("mousedown", startPress);
-  element.addEventListener("touchstart", startPress);
+  element.addEventListener("mousedown", startPress, {passive: true});
+  element.addEventListener("touchstart", startPress, {passive: true});
 
   element.addEventListener("mouseup", endPress);
   element.addEventListener("touchend", endPress);
@@ -485,7 +507,7 @@ async function setUserProfilePhotoAsBackground() {
   for (const userphoto of userPhotoElement) {
     userphoto.style.backgroundImage = `url(${fullImageUrl})`;
     if (fullImageUrl == "data:image/jpeg;base64,") {
-      userphoto.style.backgroundImage = `url(https://comhub.ru/wp-content/uploads/2018/09/dog1.png)`;
+      userphoto.style.backgroundImage = `url(../img/dog1.png)`;
     }
   }
   let me = await client.getMe();
@@ -538,7 +560,6 @@ renameButton.addEventListener("click", async () => {
       file.rename(newName);
       selectedFiles.length = 0;
       updateActionButtonVisibility();
-      await updateFileStructure();
     } catch (error) {
       console.error("Ошибка при переименовании файла:", error);
     }
@@ -557,15 +578,13 @@ moveButton.addEventListener("click", async () => {
 acceptMoveButton.addEventListener("click", async () => {
   for (const file of moveBuffer) {
     try {
-      file.copyTo(getPath());
-      file.delete();
+      file.moveTo(getPath());
     } catch (error) {
       console.error("Ошибка при перемещении файла:", error);
     }
   }
   makeHiddenAnimation(acceptMoveButton, 500);
   moveBuffer.length = 0;
-  await updateFileStructure();
 });
 
 // File copy
@@ -587,7 +606,6 @@ acceptCopyButton.addEventListener("click", async () => {
   }
   makeHiddenAnimation(acceptCopyButton, 500);
   copyBuffer.length = 0;
-  await updateFileStructure();
 });
 
 // File delete
@@ -602,7 +620,6 @@ deleteButton.addEventListener("click", async () => {
   }
   selectedFiles.length = 0;
   updateActionButtonVisibility();
-  await updateFileStructure();
 });
 
 // Add account
